@@ -28,6 +28,7 @@ export const environmentSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM: z.string().optional(),
+  PLACE_SEARCH_PROVIDER_URL: z.string().url().default("https://nominatim.openstreetmap.org/search"),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;

@@ -20,7 +20,7 @@ export class PlacesController {
   constructor(private readonly places: PlacesService) {}
 
   @Get("trips/:tripId/places/search")
-  @ApiOperation({ summary: "Mock Provider와 사용자 장소 통합 검색" })
+  @ApiOperation({ summary: "OpenStreetMap 기반 실제 장소 검색" })
   search(
     @CurrentUser() user: AuthenticatedUser,
     @Param("tripId") tripId: string,

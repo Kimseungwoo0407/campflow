@@ -44,11 +44,14 @@ interface Place {
   id: string;
   canonicalName: string;
   address: string;
+  roadAddress: string | null;
+  phone: string | null;
+  websiteUrl: string | null;
   category: string;
   description: string | null;
   amenities: unknown;
   sourceProvider: string;
-  isSample: boolean;
+  sourceUrl: string | null;
 }
 
 interface Candidate {
@@ -361,15 +364,18 @@ function ErrorNotice({ error }: { error: Error | null }) {
 export function TripDiscoverPage() {
   const { tripId } = useTrip();
   const queryClient = useQueryClient();
-  const [query, setQuery] = useState("가평");
+  const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  const [searchError, setSearchError] = useState("");
   const places = useQuery({
-    queryKey: ["places", tripId, query],
+    queryKey: ["places", tripId, submittedQuery],
     queryFn: () =>
       apiRequest<{
         items: Place[];
         providerWarnings: Array<{ message: string }>;
         attribution: string;
-      }>(`trips/${tripId}/places/search?q=${encodeURIComponent(query)}`),
+      }>(`trips/${tripId}/places/search?q=${encodeURIComponent(submittedQuery)}`),
+    enabled: submittedQuery.length >= 2,
   });
   const candidates = useQuery({
     queryKey: ["candidates", tripId],
@@ -403,47 +409,85 @@ export function TripDiscoverPage() {
   return (
     <WorkspaceShell
       eyebrow="장소 탐색"
-      title="우리에게 맞는 글램핑 찾기"
-      description="샘플 후보 또는 직접 등록한 장소를 모아 가격과 장단점을 비교하세요."
+      title="실제 장소를 찾아 후보로 추가하기"
+      description="지역과 장소 유형을 함께 검색하면 실제 이름과 주소를 불러옵니다. 마음에 드는 결과를 바로 후보에 넣어 비교하세요."
     >
       <form
         className="search-bar"
         onSubmit={(event) => {
           event.preventDefault();
-          void places.refetch();
+          const normalized = query.trim().replace(/\s+/gu, " ");
+          if (normalized.length < 2) {
+            setSearchError("지역이나 장소 이름을 두 글자 이상 입력해 주세요.");
+            return;
+          }
+          setSearchError("");
+          if (normalized === submittedQuery) {
+            void places.refetch();
+          } else {
+            setSubmittedQuery(normalized);
+          }
         }}
       >
         <Search size={19} />
         <input
           className="input"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            if (searchError) setSearchError("");
+          }}
           aria-label="장소 검색"
-          placeholder="지역, 장소명, 유형"
+          placeholder="예: 가평 글램핑, 춘천 캠핑장"
         />
-        <Button type="submit">검색</Button>
+        <Button type="submit" disabled={places.isFetching}>
+          {places.isFetching ? "찾는 중" : "검색"}
+        </Button>
       </form>
+      {searchError && (
+        <div className="form-error" role="alert">
+          {searchError}
+        </div>
+      )}
       {places.data?.providerWarnings.map((warning) => (
         <p className="workspace-warning" key={warning.message}>
           {warning.message}
         </p>
       ))}
+      <ErrorNotice error={places.error} />
       <ErrorNotice error={addCandidate.error ?? selectCandidate.error ?? removeCandidate.error} />
       <section className="workspace-section">
         <div className="section-heading-row">
           <h2>검색 결과</h2>
-          <small>{places.data?.attribution}</small>
+          {places.data?.attribution && (
+            <small>
+              {places.data.attribution}{" "}
+              <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+                이용 안내
+              </a>
+            </small>
+          )}
         </div>
-        {places.isPending && <Spinner label="장소 찾는 중" />}
+        {!submittedQuery && (
+          <EmptyState title="찾고 싶은 장소를 검색해 주세요">
+            입력할 때 자동 검색하지 않으며, 검색 버튼을 눌렀을 때만 실제 장소 정보를 가져옵니다.
+          </EmptyState>
+        )}
+        {places.isFetching && <Spinner label="실제 장소와 주소 찾는 중" />}
+        {submittedQuery && !places.isFetching && places.data && places.data.items.length === 0 && (
+          <EmptyState title="검색 결과가 없어요">
+            지역 이름과 장소 유형을 함께 적거나 다른 이름으로 검색해 보세요.
+          </EmptyState>
+        )}
         <div className="place-grid">
           {places.data?.items.map((place) => (
             <Card className="place-card" key={place.id}>
               <div className="place-card__top">
                 <span className="badge">{place.category}</span>
-                {place.isSample && <span className="sample-pill">샘플</span>}
               </div>
               <h3>{place.canonicalName}</h3>
               <p>{place.address}</p>
+              {place.phone && <small>전화 {place.phone}</small>}
               <small>{place.description}</small>
               <div className="chip-row">
                 {asStrings(place.amenities)
@@ -451,6 +495,18 @@ export function TripDiscoverPage() {
                   .map((amenity) => (
                     <i key={amenity}>{amenity}</i>
                   ))}
+              </div>
+              <div className="place-card__links">
+                {place.sourceUrl && (
+                  <a href={place.sourceUrl} target="_blank" rel="noreferrer">
+                    지도에서 확인
+                  </a>
+                )}
+                {place.websiteUrl && (
+                  <a href={place.websiteUrl} target="_blank" rel="noreferrer">
+                    홈페이지
+                  </a>
+                )}
               </div>
               <Button
                 variant="secondary"

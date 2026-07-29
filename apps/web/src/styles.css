@@ -2073,15 +2073,6 @@ p {
   justify-content: space-between;
 }
 
-.sample-pill {
-  border-radius: 99px;
-  background: #fff0d5;
-  color: #765600;
-  padding: 0.2rem 0.5rem;
-  font-size: 0.68rem;
-  font-weight: 800;
-}
-
 .chip-row i {
   border-radius: 99px;
   background: #eef1f1;
@@ -2089,6 +2080,21 @@ p {
   padding: 0.25rem 0.5rem;
   font-size: 0.7rem;
   font-style: normal;
+}
+
+.place-card__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.place-card__links a,
+.section-heading-row small a {
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 0.18rem;
 }
 
 .candidate-list {
