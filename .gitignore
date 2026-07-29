@@ -1,0 +1,25 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+!.env.*.example
+apps/api/prisma/dev.db
+playwright-report/
+test-results/
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.tools/
+*.lnk
+backups/
+storage-data/
+
+# 공개 저장소에 올리지 않는 개인 대화·실제 인물 이미지
+character_기준.txt
+character/

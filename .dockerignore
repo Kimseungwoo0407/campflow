@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/dist
+**/coverage
+.git
+.env
+.env.*
+!.env.example
+playwright-report
+test-results
+backups
+storage-data
+glamping_trip_planner_codex_spec_ko.docx

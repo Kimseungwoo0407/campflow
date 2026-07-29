@@ -1,0 +1,36 @@
+{
+  "name": "campflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "친구들과 함께 만드는 글램핑 여행 플래너",
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "pnpm --filter @campflow/api test:e2e",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "pnpm --filter @campflow/api prisma:generate",
+    "db:migrate": "pnpm --filter @campflow/api prisma:migrate",
+    "db:deploy": "pnpm --filter @campflow/api prisma:deploy",
+    "db:seed": "pnpm --filter @campflow/api prisma:seed"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.10.0",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.8.0",
+    "prettier": "^3.9.6",
+    "turbo": "^2.10.7",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.65.0"
+  }
+}

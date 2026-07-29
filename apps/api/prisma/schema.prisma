@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum GroupRole {
+  OWNER
+  MEMBER
+  GUEST
+}
+
+enum MemberStatus {
+  PENDING
+  ACTIVE
+  REMOVED
+}
+
+enum AuthTokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model User {
+  id                 String      @id
+  email              String      @unique
+  passwordHash       String
+  nickname           String
+  locale             String      @default("ko-KR")
+  timezone           String      @default("Asia/Seoul")
+  status             UserStatus  @default(ACTIVE)
+  emailVerifiedAt    DateTime?
+  mustChangePassword Boolean     @default(false)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  profile            UserProfile?
+  sessions           Session[]
+  authTokens         AuthToken[]
+  ownedGroups         Group[]     @relation("GroupOwner")
+  groupMemberships    GroupMember[]
+  auditLogs           AuditLog[]  @relation("AuditActor")
+}
+
+model AuthToken {
+  id        String           @id
+  userId    String
+  tokenHash String           @unique
+  purpose   AuthTokenPurpose
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, usedAt])
+  @@index([expiresAt])
+}
+
+model UserProfile {
+  userId            String   @id
+  phone             String?
+  allergies         String[] @default([])
+  foodDislikes      String[] @default([])
+  canDrive          Boolean  @default(false)
+  notificationPrefs Json     @default("{}")
+  privacyPrefs      Json     @default("{}")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id               String    @id
+  userId           String
+  refreshTokenHash String
+  userAgent        String?
+  ipHash           String?
+  expiresAt        DateTime
+  lastUsedAt       DateTime  @default(now())
+  revokedAt        DateTime?
+  revokeReason     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model Group {
+  id          String        @id
+  ownerId     String
+  name        String
+  description String?
+  settings    Json          @default("{}")
+  deletedAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  owner       User          @relation("GroupOwner", fields: [ownerId], references: [id])
+  members     GroupMember[]
+  invites     Invite[]
+
+  @@index([ownerId, deletedAt])
+}
+
+model GroupMember {
+  groupId    String
+  userId     String
+  role       GroupRole    @default(MEMBER)
+  displayName String?
+  status     MemberStatus @default(ACTIVE)
+  joinedAt   DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  group      Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId, status])
+}
+
+model Invite {
+  id              String    @id
+  groupId         String
+  tokenHash       String    @unique
+  codeHash        String    @unique
+  role            GroupRole @default(MEMBER)
+  expiresAt       DateTime
+  maxUses         Int
+  usedCount       Int       @default(0)
+  requireApproval Boolean   @default(false)
+  revokedAt       DateTime?
+  createdById     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  group           Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, expiresAt])
+}
+
+model AuditLog {
+  id           String   @id
+  actorId      String?
+  action       String
+  targetType   String
+  targetId     String?
+  metadataSafe Json     @default("{}")
+  ipHash       String?
+  createdAt    DateTime @default(now())
+  actor        User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId, createdAt])
+}

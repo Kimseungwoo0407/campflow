@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="CampFlow">
+  <rect width="512" height="512" rx="112" fill="#18324a"/>
+  <path d="M98 371 235 133c9-16 33-16 42 0l137 238H98Z" fill="#f4e8d0"/>
+  <path d="m256 205 95 166H161l95-166Z" fill="#0f766e"/>
+  <path d="M239 371v-82c0-22 34-22 34 0v82h-34Z" fill="#b85c38"/>
+  <circle cx="376" cy="134" r="39" fill="#f2b84b"/>
+</svg>

@@ -1,0 +1,21 @@
+{
+  "name": "@campflow/domain",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src --max-warnings=0",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run src"
+  },
+  "dependencies": {
+    "@campflow/contracts": "workspace:*",
+    "ulid": "^3.0.2"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.10"
+  }
+}

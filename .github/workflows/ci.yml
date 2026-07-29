@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: campflow
+          POSTGRES_USER: campflow
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U campflow -d campflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://campflow:ci-only-password@127.0.0.1:5432/campflow
+      JWT_ACCESS_SECRET: ci-access-secret-is-longer-than-32-characters
+      REFRESH_TOKEN_PEPPER: ci-refresh-pepper-is-longer-than-32-characters
+      INVITE_TOKEN_PEPPER: ci-invite-pepper-is-longer-than-32-characters
+      APP_ORIGIN: http://localhost:5173
+      API_PUBLIC_URL: http://localhost:4000
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm db:deploy
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm test:e2e
+      - run: pnpm build
