@@ -1,105 +1,102 @@
-import { BadRequestException } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import type { Place } from "@prisma/client";
+import { ConflictException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { PointsService } from "../points/points.service";
 import { TripAccessService } from "../trips/trip-access.service";
 import { PlacesService } from "./places.service";
 
 describe("PlacesService", () => {
-  const now = new Date("2026-07-29T00:00:00.000Z");
-  const requireMembership = jest.fn<Promise<void>, [string, string]>();
-  const findMany = jest.fn();
+  const requireWriter = jest.fn<Promise<void>, [string, string]>();
   const findFirst = jest.fn();
-  const create = jest.fn();
-  const update = jest.fn();
-  const originalFetch = globalThis.fetch;
-
+  const createPlace = jest.fn();
+  const createCandidate = jest.fn();
+  const awardActivity = jest.fn<Promise<void>, [string, string, "MANUAL_PLACE", string]>();
+  const transactionClient = {
+    place: { create: createPlace },
+    tripCandidate: { create: createCandidate },
+  };
+  const runTransaction = jest.fn(
+    async (callback: (client: typeof transactionClient) => Promise<unknown>) =>
+      callback(transactionClient),
+  );
   const prisma = {
-    place: { findMany, findFirst, create, update },
+    tripCandidate: { findFirst },
+    $transaction: runTransaction,
   } as unknown as PrismaService;
-  const access = { requireMembership } as unknown as TripAccessService;
-  const points = {} as PointsService;
-  const config = {
-    get: jest.fn((_key: string, fallback: string) => fallback),
-  } as unknown as ConfigService;
+  const access = { requireWriter } as unknown as TripAccessService;
+  const points = { awardActivity } as unknown as PointsService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    requireMembership.mockResolvedValue();
-    findMany.mockResolvedValue([]);
+    requireWriter.mockResolvedValue();
     findFirst.mockResolvedValue(null);
-    create.mockImplementation(
-      (request: { data: Omit<Place, "createdAt" | "updatedAt" | "createdByUserId"> }) =>
-        Promise.resolve({
-          ...request.data,
-          createdByUserId: null,
-          createdAt: now,
-          updatedAt: now,
-        }),
-    );
-  });
-
-  afterAll(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  it("실제 제공자 결과를 이름과 주소가 있는 후보용 장소로 저장한다", async () => {
-    const fetchMock = jest
-      .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify([
-            {
-              place_id: 101,
-              osm_type: "node",
-              osm_id: 202,
-              lat: "37.8184",
-              lon: "127.5191",
-              display_name: "자라섬 캠핑장, 자라섬로, 가평읍, 가평군, 경기도, 대한민국",
-              class: "tourism",
-              type: "camp_site",
-              namedetails: { "name:ko": "자라섬 캠핑장" },
-              extratags: {
-                phone: "031-000-0000",
-                website: "https://example.test/place",
-                parking: "surface",
-              },
-            },
-          ]),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
-      );
-    globalThis.fetch = fetchMock;
-    const service = new PlacesService(prisma, access, points, config);
-
-    const first = await service.search("user-1", "trip-1", "가평 캠핑장");
-    const second = await service.search("user-1", "trip-1", "가평   캠핑장");
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(first.items[0]).toMatchObject({
-      canonicalName: "자라섬 캠핑장",
-      address: "자라섬로, 가평읍, 가평군, 경기도, 대한민국",
-      category: "캠핑장",
-      sourceProvider: "NOMINATIM",
-      sourceUrl: "https://www.openstreetmap.org/node/202",
-      isSample: false,
+    createPlace.mockResolvedValue({ id: "place-1" });
+    createCandidate.mockResolvedValue({
+      id: "candidate-1",
+      tripId: "trip-1",
+      placeId: "place-1",
+      addedById: "user-1",
+      status: "ACTIVE",
+      estimatedTotal: null,
+      priceNote: "4인 48만원",
+      note: "서울에서 차로 1시간 20분",
+      pros: [],
+      cons: [],
+      place: {
+        id: "place-1",
+        canonicalName: "친구들이 찾은 글램핑장",
+        address: "경기도 가평군 가평읍 테스트로 1",
+        sourceUrl: "https://map.naver.com/p/entry/place/123",
+      },
+      addedBy: { id: "user-1", nickname: "승우" },
     });
-    expect(second.items[0]?.canonicalName).toBe("자라섬 캠핑장");
-    expect(first.attribution).toContain("OpenStreetMap contributors");
-    const requestedUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
-    expect(requestedUrl.searchParams.get("countrycodes")).toBe("kr");
-    expect(requestedUrl.searchParams.get("limit")).toBe("10");
+    awardActivity.mockResolvedValue();
   });
 
-  it("두 글자 미만 검색어는 제공자를 호출하지 않는다", async () => {
-    const fetchMock = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>();
-    globalThis.fetch = fetchMock;
-    const service = new PlacesService(prisma, access, points, config);
+  it("직접 입력한 이름·위치·거리·가격으로 후보를 한 번에 만든다", async () => {
+    const service = new PlacesService(prisma, access, points);
 
-    await expect(service.search("user-1", "trip-1", "가")).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
-    expect(fetchMock).not.toHaveBeenCalled();
+    const result = await service.addManualCandidate("user-1", "trip-1", {
+      canonicalName: "친구들이 찾은 글램핑장",
+      location: "경기도 가평군 가평읍 테스트로 1",
+      distance: "서울에서 차로 1시간 20분",
+      price: "4인 48만원",
+      mapUrl: "https://map.naver.com/p/entry/place/123",
+    });
+
+    expect(createPlace).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        canonicalName: "친구들이 찾은 글램핑장",
+        address: "경기도 가평군 가평읍 테스트로 1",
+        category: "글램핑",
+        sourceProvider: "EXTERNAL_MAP",
+        sourceUrl: "https://map.naver.com/p/entry/place/123",
+        isSample: false,
+      }),
+    });
+    expect(createCandidate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tripId: "trip-1",
+        addedById: "user-1",
+        note: "서울에서 차로 1시간 20분",
+        priceNote: "4인 48만원",
+      }),
+      include: expect.any(Object),
+    });
+    expect(awardActivity).toHaveBeenCalledWith("trip-1", "user-1", "MANUAL_PLACE", "candidate-1");
+    expect(result).toMatchObject({ id: "candidate-1" });
+  });
+
+  it("같은 이름과 주소의 중복 후보는 만들지 않는다", async () => {
+    findFirst.mockResolvedValue({ id: "candidate-existing" });
+    const service = new PlacesService(prisma, access, points);
+
+    await expect(
+      service.addManualCandidate("user-1", "trip-1", {
+        canonicalName: "친구들이 찾은 글램핑장",
+        location: "경기도 가평군 가평읍 테스트로 1",
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(runTransaction).not.toHaveBeenCalled();
+    expect(awardActivity).not.toHaveBeenCalled();
   });
 });

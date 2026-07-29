@@ -46,7 +46,7 @@ export class HealthController {
         database,
         redis: process.env.REDIS_URL ? "configured-not-required" : "disabled",
         storage: process.env.STORAGE_DRIVER ?? "local",
-        providers: "openstreetmap-nominatim",
+        providers: "manual-map-links",
       },
     };
   }

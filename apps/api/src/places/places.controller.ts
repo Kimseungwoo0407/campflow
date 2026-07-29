@@ -1,10 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   createCandidateSchema,
+  createManualCandidateSchema,
   createPlaceSchema,
   updateCandidateSchema,
   type CreateCandidateInput,
+  type CreateManualCandidateInput,
   type CreatePlaceInput,
   type UpdateCandidateInput,
 } from "@campflow/contracts";
@@ -18,16 +20,6 @@ import { PlacesService } from "./places.service";
 @Controller()
 export class PlacesController {
   constructor(private readonly places: PlacesService) {}
-
-  @Get("trips/:tripId/places/search")
-  @ApiOperation({ summary: "OpenStreetMap 기반 실제 장소 검색" })
-  search(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("tripId") tripId: string,
-    @Query("q") query = "",
-  ) {
-    return this.places.search(user.id, tripId, query);
-  }
 
   @Post("trips/:tripId/places/manual")
   @ApiOperation({ summary: "사용자 장소 직접 등록" })
@@ -53,6 +45,16 @@ export class PlacesController {
     @Body(new ZodValidationPipe(createCandidateSchema)) input: CreateCandidateInput,
   ) {
     return this.places.addCandidate(user.id, tripId, input);
+  }
+
+  @Post("trips/:tripId/candidates/manual")
+  @ApiOperation({ summary: "이름·위치·거리·가격을 직접 입력해 장소 후보로 등록" })
+  addManualCandidate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("tripId") tripId: string,
+    @Body(new ZodValidationPipe(createManualCandidateSchema)) input: CreateManualCandidateInput,
+  ) {
+    return this.places.addManualCandidate(user.id, tripId, input);
   }
 
   @Patch("candidates/:id")

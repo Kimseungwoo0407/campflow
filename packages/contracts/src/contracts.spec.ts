@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createInviteSchema, loginSchema, signUpSchema } from "./index";
+import {
+  createInviteSchema,
+  createManualCandidateSchema,
+  loginSchema,
+  signUpSchema,
+} from "./index";
 
 describe("공유 입력 계약", () => {
   it("이메일을 정규화하고 안전한 회원가입 입력을 허용한다", () => {
@@ -27,6 +32,22 @@ describe("공유 입력 계약", () => {
     expect(loginSchema.parse({ identifier: " 테스트사용자 ", password: "1234" })).toEqual({
       identifier: "테스트사용자",
       password: "1234",
+    });
+  });
+
+  it("장소명·위치와 선택적인 거리·가격으로 후보를 등록한다", () => {
+    expect(
+      createManualCandidateSchema.parse({
+        canonicalName: " 포천 파인밸리글램핑 ",
+        location: " 경기 포천시 화현면 ",
+        distance: "서울에서 차로 1시간 20분",
+        price: "4인 32만원",
+      }),
+    ).toEqual({
+      canonicalName: "포천 파인밸리글램핑",
+      location: "경기 포천시 화현면",
+      distance: "서울에서 차로 1시간 20분",
+      price: "4인 32만원",
     });
   });
 });

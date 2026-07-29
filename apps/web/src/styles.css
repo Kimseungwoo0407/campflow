@@ -2097,6 +2097,46 @@ p {
   text-underline-offset: 0.18rem;
 }
 
+.place-create-card {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.place-create-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.place-create-form__wide {
+  grid-column: 1 / -1;
+}
+
+.place-create-form__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.place-map-search-link {
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+.candidate-map-link {
+  display: block;
+  margin: 0.35rem 0;
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 0.18rem;
+}
+
 .candidate-list {
   display: grid;
   gap: 0.7rem;
@@ -2104,7 +2144,7 @@ p {
 
 .candidate-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 1rem;
 }
@@ -2118,10 +2158,37 @@ p {
   margin: 0.5rem 0 0.25rem;
 }
 
-.candidate-card p,
 .candidate-card small {
   margin: 0;
   color: var(--ink-muted);
+}
+
+.candidate-card__facts {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) repeat(2, minmax(120px, 1fr));
+  gap: 0.55rem;
+  margin: 0.75rem 0;
+}
+
+.candidate-card__facts > div {
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  background: #f5f6f4;
+}
+
+.candidate-card__facts dt {
+  margin-bottom: 0.2rem;
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.candidate-card__facts dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .inline-create-form {
@@ -2657,6 +2724,27 @@ textarea {
 
   .search-bar > svg {
     display: none;
+  }
+
+  .place-create-form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .place-create-form__wide {
+    grid-column: auto;
+  }
+
+  .place-create-form__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .place-create-form__actions .button {
+    width: 100%;
+  }
+
+  .candidate-card__facts {
+    grid-template-columns: 1fr;
   }
 
   .timeline-day {

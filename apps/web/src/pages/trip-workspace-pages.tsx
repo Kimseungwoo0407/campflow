@@ -13,7 +13,6 @@ import {
   MessageCircle,
   MessageSquareText,
   Plus,
-  Search,
   ShoppingBasket,
   Trash2,
   Trophy,
@@ -44,13 +43,6 @@ interface Place {
   id: string;
   canonicalName: string;
   address: string;
-  roadAddress: string | null;
-  phone: string | null;
-  websiteUrl: string | null;
-  category: string;
-  description: string | null;
-  amenities: unknown;
-  sourceProvider: string;
   sourceUrl: string | null;
 }
 
@@ -59,6 +51,7 @@ interface Candidate {
   status: "ACTIVE" | "SELECTED" | "REJECTED";
   estimatedTotal: number | null;
   priceNote: string | null;
+  note: string | null;
   pros: unknown;
   cons: unknown;
   place: Place;
@@ -248,12 +241,6 @@ function dateTime(value: string | null): string {
   }).format(new Date(value));
 }
 
-function asStrings(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-}
-
 function asIngredients(value: unknown): Ingredient[] {
   if (!Array.isArray(value)) return [];
   return value.filter(
@@ -364,31 +351,41 @@ function ErrorNotice({ error }: { error: Error | null }) {
 export function TripDiscoverPage() {
   const { tripId } = useTrip();
   const queryClient = useQueryClient();
-  const [query, setQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState("");
-  const [searchError, setSearchError] = useState("");
-  const places = useQuery({
-    queryKey: ["places", tripId, submittedQuery],
-    queryFn: () =>
-      apiRequest<{
-        items: Place[];
-        providerWarnings: Array<{ message: string }>;
-        attribution: string;
-      }>(`trips/${tripId}/places/search?q=${encodeURIComponent(submittedQuery)}`),
-    enabled: submittedQuery.length >= 2,
+  const [draft, setDraft] = useState({
+    canonicalName: "",
+    location: "",
+    distance: "",
+    price: "",
+    mapUrl: "",
   });
+  const [createdNotice, setCreatedNotice] = useState("");
   const candidates = useQuery({
     queryKey: ["candidates", tripId],
     queryFn: () => apiRequest<Candidate[]>(`trips/${tripId}/candidates`),
   });
-  const candidatePlaceIds = new Set(candidates.data?.map((candidate) => candidate.place.id));
-  const addCandidate = useMutation({
-    mutationFn: (placeId: string) =>
-      apiRequest<Candidate>(`trips/${tripId}/candidates`, {
+  const createCandidate = useMutation({
+    mutationFn: () =>
+      apiRequest<Candidate>(`trips/${tripId}/candidates/manual`, {
         method: "POST",
-        body: JSON.stringify({ placeId, pros: [], cons: [] }),
+        body: JSON.stringify({
+          canonicalName: draft.canonicalName.trim(),
+          location: draft.location.trim(),
+          distance: draft.distance.trim() || undefined,
+          price: draft.price.trim() || undefined,
+          mapUrl: draft.mapUrl.trim() || undefined,
+        }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["candidates", tripId] }),
+    onSuccess: (candidate) => {
+      setDraft({
+        canonicalName: "",
+        location: "",
+        distance: "",
+        price: "",
+        mapUrl: "",
+      });
+      setCreatedNotice(`‘${candidate.place.canonicalName}’을 후보에 추가했습니다.`);
+      void queryClient.invalidateQueries({ queryKey: ["candidates", tripId] });
+    },
   });
   const selectCandidate = useMutation({
     mutationFn: (id: string) =>
@@ -405,125 +402,125 @@ export function TripDiscoverPage() {
     mutationFn: (id: string) => apiRequest(`candidates/${id}`, { method: "DELETE" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["candidates", tripId] }),
   });
+  const mapSearchQuery =
+    [draft.canonicalName, draft.location].filter((value) => value.trim()).join(" ") ||
+    "포천 글램핑";
 
   return (
     <WorkspaceShell
-      eyebrow="장소 탐색"
-      title="실제 장소를 찾아 후보로 추가하기"
-      description="지역과 장소 유형을 함께 검색하면 실제 이름과 주소를 불러옵니다. 마음에 드는 결과를 바로 후보에 넣어 비교하세요."
+      eyebrow="장소 후보"
+      title="아는 장소를 바로 추가하세요"
+      description="장소명과 위치를 적고, 알고 있는 거리와 가격을 덧붙이면 바로 우리 여행의 후보가 됩니다."
     >
-      <form
-        className="search-bar"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const normalized = query.trim().replace(/\s+/gu, " ");
-          if (normalized.length < 2) {
-            setSearchError("지역이나 장소 이름을 두 글자 이상 입력해 주세요.");
-            return;
-          }
-          setSearchError("");
-          if (normalized === submittedQuery) {
-            void places.refetch();
-          } else {
-            setSubmittedQuery(normalized);
-          }
-        }}
-      >
-        <Search size={19} />
-        <input
-          className="input"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            if (searchError) setSearchError("");
+      <Card className="place-create-card">
+        <form
+          className="stack-form place-create-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setCreatedNotice("");
+            createCandidate.mutate();
           }}
-          aria-label="장소 검색"
-          placeholder="예: 가평 글램핑, 춘천 캠핑장"
-        />
-        <Button type="submit" disabled={places.isFetching}>
-          {places.isFetching ? "찾는 중" : "검색"}
-        </Button>
-      </form>
-      {searchError && (
-        <div className="form-error" role="alert">
-          {searchError}
-        </div>
-      )}
-      {places.data?.providerWarnings.map((warning) => (
-        <p className="workspace-warning" key={warning.message}>
-          {warning.message}
-        </p>
-      ))}
-      <ErrorNotice error={places.error} />
-      <ErrorNotice error={addCandidate.error ?? selectCandidate.error ?? removeCandidate.error} />
-      <section className="workspace-section">
-        <div className="section-heading-row">
-          <h2>검색 결과</h2>
-          {places.data?.attribution && (
-            <small>
-              {places.data.attribution}{" "}
-              <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
-                이용 안내
-              </a>
-            </small>
-          )}
-        </div>
-        {!submittedQuery && (
-          <EmptyState title="찾고 싶은 장소를 검색해 주세요">
-            입력할 때 자동 검색하지 않으며, 검색 버튼을 눌렀을 때만 실제 장소 정보를 가져옵니다.
-          </EmptyState>
-        )}
-        {places.isFetching && <Spinner label="실제 장소와 주소 찾는 중" />}
-        {submittedQuery && !places.isFetching && places.data && places.data.items.length === 0 && (
-          <EmptyState title="검색 결과가 없어요">
-            지역 이름과 장소 유형을 함께 적거나 다른 이름으로 검색해 보세요.
-          </EmptyState>
-        )}
-        <div className="place-grid">
-          {places.data?.items.map((place) => (
-            <Card className="place-card" key={place.id}>
-              <div className="place-card__top">
-                <span className="badge">{place.category}</span>
-              </div>
-              <h3>{place.canonicalName}</h3>
-              <p>{place.address}</p>
-              {place.phone && <small>전화 {place.phone}</small>}
-              <small>{place.description}</small>
-              <div className="chip-row">
-                {asStrings(place.amenities)
-                  .slice(0, 4)
-                  .map((amenity) => (
-                    <i key={amenity}>{amenity}</i>
-                  ))}
-              </div>
-              <div className="place-card__links">
-                {place.sourceUrl && (
-                  <a href={place.sourceUrl} target="_blank" rel="noreferrer">
-                    지도에서 확인
-                  </a>
-                )}
-                {place.websiteUrl && (
-                  <a href={place.websiteUrl} target="_blank" rel="noreferrer">
-                    홈페이지
-                  </a>
-                )}
-              </div>
-              <Button
-                variant="secondary"
-                disabled={candidatePlaceIds.has(place.id) || addCandidate.isPending}
-                onClick={() => addCandidate.mutate(place.id)}
-              >
-                {candidatePlaceIds.has(place.id) ? <Check size={16} /> : <Plus size={16} />}
-                {candidatePlaceIds.has(place.id) ? "후보에 있음" : "후보로 추가"}
-              </Button>
-            </Card>
-          ))}
-        </div>
-      </section>
+        >
+          <div className="section-heading-row">
+            <div>
+              <span className="eyebrow">직접 입력</span>
+              <h2>새 장소 추가</h2>
+            </div>
+            <small>장소명과 위치만 필수입니다.</small>
+          </div>
+          <div className="place-create-form__grid">
+            <label className="field">
+              <span className="field__label">장소 이름 *</span>
+              <input
+                className="input"
+                value={draft.canonicalName}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, canonicalName: event.target.value }))
+                }
+                placeholder="예: 포천 파인밸리글램핑"
+                minLength={2}
+                maxLength={120}
+                required
+              />
+            </label>
+            <label className="field">
+              <span className="field__label">위치 *</span>
+              <input
+                className="input"
+                value={draft.location}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, location: event.target.value }))
+                }
+                placeholder="예: 경기 포천시 화현면"
+                minLength={2}
+                maxLength={300}
+                required
+              />
+            </label>
+            <label className="field">
+              <span className="field__label">거리</span>
+              <input
+                className="input"
+                value={draft.distance}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, distance: event.target.value }))
+                }
+                placeholder="예: 서울에서 차로 1시간 20분"
+                maxLength={120}
+              />
+            </label>
+            <label className="field">
+              <span className="field__label">가격</span>
+              <input
+                className="input"
+                value={draft.price}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, price: event.target.value }))
+                }
+                placeholder="예: 4인 32만원, 바비큐 별도"
+                maxLength={120}
+              />
+            </label>
+            <label className="field place-create-form__wide">
+              <span className="field__label">네이버 지도 링크 (선택)</span>
+              <input
+                className="input"
+                type="url"
+                value={draft.mapUrl}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, mapUrl: event.target.value }))
+                }
+                placeholder="장소 공유 링크를 붙여넣으면 후보에서 바로 열어볼 수 있어요"
+                maxLength={500}
+              />
+            </label>
+          </div>
+          <div className="place-create-form__actions">
+            <Button type="submit" disabled={createCandidate.isPending}>
+              <Plus size={17} />
+              {createCandidate.isPending ? "추가 중" : "장소 추가"}
+            </Button>
+            <a
+              className="place-map-search-link"
+              href={`https://map.naver.com/p/search/${encodeURIComponent(mapSearchQuery)}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              네이버 지도에서 정보 확인
+            </a>
+          </div>
+        </form>
+        {createdNotice && <div className="form-notice">{createdNotice}</div>}
+        <ErrorNotice error={createCandidate.error} />
+      </Card>
+      <ErrorNotice error={selectCandidate.error ?? removeCandidate.error} />
       <section className="workspace-section">
         <h2>후보 비교</h2>
+        {candidates.isPending && <Spinner label="후보 불러오는 중" />}
         {candidates.data?.length === 0 && (
-          <EmptyState title="비교할 후보가 없어요">검색 결과에서 후보를 추가해 주세요.</EmptyState>
+          <EmptyState title="아직 후보가 없어요">
+            알고 있는 장소명과 위치부터 가볍게 적어 주세요.
+          </EmptyState>
         )}
         <div className="candidate-list">
           {candidates.data?.map((candidate) => (
@@ -542,12 +539,37 @@ export function TripDiscoverPage() {
                       : "검토 중"}
                 </span>
                 <h3>{candidate.place.canonicalName}</h3>
-                <p>{candidate.place.address}</p>
-                <small>{candidate.priceNote ?? `추가: ${candidate.addedBy.nickname}`}</small>
+                <dl className="candidate-card__facts">
+                  <div>
+                    <dt>위치</dt>
+                    <dd>{candidate.place.address}</dd>
+                  </div>
+                  <div>
+                    <dt>거리</dt>
+                    <dd>{candidate.note ?? "미입력"}</dd>
+                  </div>
+                  <div>
+                    <dt>가격</dt>
+                    <dd>
+                      {candidate.priceNote ??
+                        (candidate.estimatedTotal === null
+                          ? "미입력"
+                          : money(candidate.estimatedTotal))}
+                    </dd>
+                  </div>
+                </dl>
+                {candidate.place.sourceUrl && (
+                  <a
+                    className="candidate-map-link"
+                    href={candidate.place.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    네이버 지도에서 보기
+                  </a>
+                )}
+                <small>추가: {candidate.addedBy.nickname}</small>
               </div>
-              <strong>
-                {candidate.estimatedTotal === null ? "가격 미정" : money(candidate.estimatedTotal)}
-              </strong>
               <div className="candidate-card__actions">
                 {candidate.status === "ACTIVE" && (
                   <Button onClick={() => selectCandidate.mutate(candidate.id)}>이 장소 확정</Button>

@@ -169,6 +169,22 @@ export const createCandidateSchema = z
   })
   .strict();
 
+export const createManualCandidateSchema = z
+  .object({
+    canonicalName: z.string().trim().min(2).max(120),
+    location: z.string().trim().min(2).max(300),
+    distance: z.string().trim().max(120).optional(),
+    price: z.string().trim().max(120).optional(),
+    mapUrl: z
+      .string()
+      .trim()
+      .url()
+      .max(500)
+      .regex(/^https?:\/\//i, "http 또는 https 지도 링크만 입력해 주세요.")
+      .optional(),
+  })
+  .strict();
+
 export const updateCandidateSchema = createCandidateSchema
   .omit({ placeId: true })
   .extend({
@@ -395,6 +411,7 @@ export type UpdateTripInput = z.infer<typeof updateTripSchema>;
 export type TransitionTripInput = z.infer<typeof transitionTripSchema>;
 export type CreatePlaceInput = z.infer<typeof createPlaceSchema>;
 export type CreateCandidateInput = z.infer<typeof createCandidateSchema>;
+export type CreateManualCandidateInput = z.infer<typeof createManualCandidateSchema>;
 export type UpdateCandidateInput = z.infer<typeof updateCandidateSchema>;
 export type CreatePollInput = z.infer<typeof createPollSchema>;
 export type PollVoteInput = z.infer<typeof pollVoteSchema>;
