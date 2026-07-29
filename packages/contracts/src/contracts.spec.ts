@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInviteSchema, signUpSchema } from "./index";
+import { createInviteSchema, loginSchema, signUpSchema } from "./index";
 
 describe("공유 입력 계약", () => {
   it("이메일을 정규화하고 안전한 회원가입 입력을 허용한다", () => {
@@ -21,5 +21,12 @@ describe("공유 입력 계약", () => {
         requireApproval: false,
       }).success,
     ).toBe(false);
+  });
+
+  it("한글 이름 아이디 로그인을 허용한다", () => {
+    expect(loginSchema.parse({ identifier: " 테스트사용자 ", password: "1234" })).toEqual({
+      identifier: "테스트사용자",
+      password: "1234",
+    });
   });
 });

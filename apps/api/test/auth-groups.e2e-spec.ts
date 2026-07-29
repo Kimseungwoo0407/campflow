@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import request from "supertest";
 import { randomUUID } from "node:crypto";
 import type { ApiSuccess, AuthResult } from "@campflow/contracts";
+import { PrismaService } from "../src/prisma/prisma.service";
 
 process.env.NODE_ENV = "test";
 process.env.DATABASE_URL ??= "postgresql://campflow:campflow_dev@127.0.0.1:5433/campflow";
@@ -45,6 +46,19 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
     const owner = await signUp("소유자");
     const friend = await signUp("친구");
     const outsider = await signUp("외부인");
+    const prisma = app.get(PrismaService);
+    await prisma.user.update({
+      where: { id: owner.user.id },
+      data: { username: `소유자-${randomUUID()}` },
+    });
+
+    await request(app.getHttpServer())
+      .post("/v1/auth/login")
+      .send({
+        identifier: (await prisma.user.findUniqueOrThrow({ where: { id: owner.user.id } })).username,
+        password: "SafePassword2026!",
+      })
+      .expect(200);
 
     const groupResponse = await request(app.getHttpServer())
       .post("/v1/groups")

@@ -10,6 +10,31 @@ Repository Settings → Pages에서 GitHub Actions를 source로 선택합니다.
 
 `main` push 시 CI가 성공해야 Pages build가 배포됩니다. 비밀 Provider key와 DB/JWT/SMTP 값은 Pages variable에 넣지 않습니다.
 
+Pages와 API가 서로 다른 사이트이면 API에
+`APP_ORIGIN=https://<account>.github.io`, `COOKIE_SECURE=true`,
+`COOKIE_SAME_SITE=none`을 지정합니다. 웹은 로그인 응답의 CSRF token을 현재 탭의
+`sessionStorage`에도 보관해 cross-site refresh 요청에 사용합니다.
+
+## 계정 없는 공개 데모 터널
+
+고정 도메인이 아직 없다면 개발 DB와 API를 Cloudflare Quick Tunnel에 연결할 수 있습니다.
+
+```powershell
+docker compose --env-file .env `
+  -f infra/docker-compose.dev.yml `
+  -f infra/docker-compose.public-demo.yml `
+  up -d --build api quick-tunnel
+docker compose --env-file .env `
+  -f infra/docker-compose.dev.yml `
+  -f infra/docker-compose.public-demo.yml `
+  logs quick-tunnel
+```
+
+로그의 `https://....trycloudflare.com` 뒤에 `/v1`을 붙인 값을 GitHub repository
+variable `VITE_API_BASE_URL`로 지정하고 Pages workflow를 다시 실행합니다. Quick Tunnel은
+PC와 Docker가 실행 중일 때만 동작하고 컨테이너 재시작 시 주소가 바뀔 수 있으므로,
+고정 운영 주소가 필요하면 아래 named tunnel 방식을 사용합니다.
+
 ## 홈 서버
 
 운영 `.env`를 서버에만 만들고 파일 권한을 제한합니다. PostgreSQL, Redis, MinIO는 Docker 내부 network에만 존재합니다. API의 host bind는 상태 점검을 위해 `127.0.0.1`로 제한합니다.

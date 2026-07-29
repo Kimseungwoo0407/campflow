@@ -5,6 +5,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:400
   "",
 );
 let accessToken: string | null = null;
+let csrfTokenMemory: string | null = sessionStorage.getItem("campflow_csrf");
 let refreshPromise: Promise<AuthResult> | null = null;
 
 export class ApiClientError extends Error {
@@ -19,11 +20,20 @@ export class ApiClientError extends Error {
   }
 }
 
-export function setApiAccessToken(token: string | null): void {
-  accessToken = token;
+export function setApiSessionTokens(result: AuthResult): void {
+  accessToken = result.accessToken;
+  csrfTokenMemory = result.csrfToken;
+  sessionStorage.setItem("campflow_csrf", result.csrfToken);
+}
+
+export function clearApiSessionTokens(): void {
+  accessToken = null;
+  csrfTokenMemory = null;
+  sessionStorage.removeItem("campflow_csrf");
 }
 
 export function readCsrfToken(): string | undefined {
+  if (csrfTokenMemory) return csrfTokenMemory;
   const entry = document.cookie
     .split("; ")
     .find((cookie) => cookie.startsWith("campflow_csrf="));
@@ -37,7 +47,7 @@ export async function restoreSession(): Promise<AuthResult> {
     });
   }
   const result = await refreshPromise;
-  setApiAccessToken(result.accessToken);
+  setApiSessionTokens(result);
   return result;
 }
 
@@ -78,7 +88,7 @@ export async function apiRequest<T>(
       await restoreSession();
       return apiRequest<T>(path, init, false);
     } catch {
-      setApiAccessToken(null);
+      clearApiSessionTokens();
     }
   }
 

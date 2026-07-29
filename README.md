@@ -63,6 +63,14 @@ macOS/Linux에서는 `.env.example`을 `.env`로 복사한 뒤 다음 필수 값
 
 고정 데모 초대 코드는 `DEMO2026`입니다. Seed는 `NODE_ENV=production`에서 실행을 거부합니다.
 
+로그인은 이메일 또는 `username`을 받습니다. 친구용 계정은 공개 저장소에 비밀번호를
+남기지 않고 로컬 `.env`의 `SEED_FRIEND_ACCOUNTS_JSON`으로만 주입합니다. 운영 seed는
+`ALLOW_PRODUCTION_SEED=true`를 함께 지정한 경우에만 허용됩니다.
+
+```text
+SEED_FRIEND_ACCOUNTS_JSON=[{"username":"이름","email":"name@campflow.local","nickname":"이름","password":"생일 4자리"}]
+```
+
 ## 품질 검증
 
 ```powershell
@@ -87,6 +95,7 @@ packages/
   ui/             접근 가능한 공통 UI 기본 컴포넌트
 infra/
   docker-compose.dev.yml
+  docker-compose.public-demo.yml
   docker-compose.yml
   scripts/
 docs/
@@ -118,6 +127,18 @@ docs/
 6. Cloudflare 공개 호스트는 `api.example.com`에서 Docker의 `http://api:4000`으로 연결합니다.
 
 운영 DB·Redis·MinIO 포트는 외부에 publish하지 않습니다. API의 호스트 포트도 `127.0.0.1`에만 바인딩됩니다. 자세한 내용은 [배포 문서](docs/deployment.md), [운영 문서](OPERATIONS.md), [백업 문서](BACKUP.md)를 참고하세요.
+
+Cloudflare Quick Tunnel을 사용하는 공개 데모는 다음처럼 실행합니다.
+
+```powershell
+docker compose --env-file .env `
+  -f infra/docker-compose.dev.yml `
+  -f infra/docker-compose.public-demo.yml `
+  up -d --build api quick-tunnel
+```
+
+Quick Tunnel 주소는 재시작 시 바뀔 수 있고 PC와 Docker가 켜져 있을 때만 유지됩니다.
+고정 운영에는 `infra/docker-compose.yml`의 named tunnel 구성을 사용합니다.
 
 ## 문서
 

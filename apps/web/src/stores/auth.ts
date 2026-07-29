@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { AuthResult, SessionUser } from "@campflow/contracts";
-import { setApiAccessToken } from "../api/client";
+import { clearApiSessionTokens, setApiSessionTokens } from "../api/client";
 
 type AuthStatus = "checking" | "authenticated" | "anonymous";
 
@@ -16,12 +16,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   status: "checking",
   user: null,
   setSession: (result) => {
-    setApiAccessToken(result.accessToken);
+    setApiSessionTokens(result);
     set({ status: "authenticated", user: result.user });
   },
   updateUser: (user) => set({ user }),
   setAnonymous: () => {
-    setApiAccessToken(null);
+    clearApiSessionTokens();
     set({ status: "anonymous", user: null });
   },
 }));

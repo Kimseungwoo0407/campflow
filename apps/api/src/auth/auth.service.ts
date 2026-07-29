@@ -103,20 +103,25 @@ export class AuthService {
   }
 
   async login(input: LoginInput, metadata: ClientMetadata): Promise<AuthResult & { refreshToken: string }> {
-    const email = normalizeEmail(input.email);
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const identifier = input.identifier.trim();
+    const normalizedIdentifier = identifier.normalize("NFKC").toLocaleLowerCase("ko-KR");
+    const user = identifier.includes("@")
+      ? await this.prisma.user.findUnique({ where: { email: normalizeEmail(identifier) } })
+      : await this.prisma.user.findFirst({
+          where: { username: normalizedIdentifier },
+        });
     const verified = user ? await argon2.verify(user.passwordHash, input.password).catch(() => false) : false;
 
     if (!user || !verified || user.status !== "ACTIVE") {
       await this.audit.record({
         action: "auth.login_failed",
         targetType: "User",
-        metadata: { emailHash: this.hashSensitive(email) },
+        metadata: { identifierHash: this.hashSensitive(normalizedIdentifier) },
         ipHash: metadata.ip ? this.hashSensitive(metadata.ip) : undefined,
       });
       throw new UnauthorizedException({
         code: "INVALID_CREDENTIALS",
-        message: "이메일 또는 비밀번호를 확인해 주세요.",
+        message: "아이디 또는 비밀번호를 확인해 주세요.",
       });
     }
 
@@ -548,6 +553,7 @@ export class AuthService {
   private toSessionUser(user: User) {
     return {
       id: user.id,
+      username: user.username,
       email: user.email,
       nickname: user.nickname,
       locale: user.locale,

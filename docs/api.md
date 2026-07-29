@@ -32,6 +32,15 @@ Base URL은 `/v1`, JSON field는 camelCase입니다. 성공 응답과 오류 응
 - Invites: preview, accept
 - Health: live, ready, dependencies, version
 
+로그인은 이름 아이디 또는 이메일을 `identifier`에 넣습니다.
+
+```json
+{
+  "identifier": "테스트사용자",
+  "password": "1234"
+}
+```
+
 보호 endpoint는 `Authorization: Bearer <accessToken>`이 필요합니다. Cookie를 사용하는 refresh/logout은 `campflow_csrf` cookie와 같은 값을 `X-CSRF-Token` 헤더로 전송해야 합니다.
 
 개발 모드에서 SMTP가 없으면 email/password reset token은 서버 로그가 아니라 응답의 `developmentVerificationToken` 또는 `developmentResetToken`으로만 반환됩니다. production 응답에는 포함되지 않습니다.

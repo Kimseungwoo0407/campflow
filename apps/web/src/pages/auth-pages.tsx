@@ -50,7 +50,7 @@ export function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { identifier: "", password: "" },
   });
 
   async function submit(input: LoginInput) {
@@ -77,13 +77,13 @@ export function LoginPage() {
     <AuthShell title="다시 만나 반가워요" lead="여행 준비가 기다리고 있어요.">
       <form className="stack-form" onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
         <Field
-          label="이메일"
-          error={errors.email?.message}
+          label="아이디 또는 이메일"
+          error={errors.identifier?.message}
           inputProps={{
-            id: "login-email",
-            type: "email",
-            autoComplete: "email",
-            ...register("email"),
+            id: "login-identifier",
+            type: "text",
+            autoComplete: "username",
+            ...register("identifier"),
           }}
         />
         <Field
@@ -111,8 +111,8 @@ export function LoginPage() {
           아직 계정이 없나요? <Link to="/signup">회원가입</Link>
         </p>
         <div className="demo-hint">
-          <b>개발 데모</b>
-          <span>owner@campflow.local / CampFlow2026!</span>
+          <b>친구 계정</b>
+          <span>관리자에게 받은 이름 아이디로 로그인하세요.</span>
         </div>
       </form>
     </AuthShell>

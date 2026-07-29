@@ -32,6 +32,7 @@ enum AuthTokenPurpose {
 
 model User {
   id                 String      @id
+  username           String?     @unique
   email              String      @unique
   passwordHash       String
   nickname           String

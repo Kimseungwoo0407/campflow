@@ -5,6 +5,11 @@ export const memberStatusSchema = z.enum(["PENDING", "ACTIVE", "REMOVED"]);
 export const userStatusSchema = z.enum(["ACTIVE", "SUSPENDED", "DELETED"]);
 
 export const emailSchema = z.string().trim().toLowerCase().email().max(254);
+export const loginIdentifierSchema = z
+  .string()
+  .trim()
+  .min(2, "아이디 또는 이메일을 입력해 주세요.")
+  .max(254);
 export const passwordSchema = z
   .string()
   .min(12, "비밀번호는 12자 이상이어야 합니다.")
@@ -23,7 +28,7 @@ export const signUpSchema = z
 
 export const loginSchema = z
   .object({
-    email: emailSchema,
+    identifier: loginIdentifierSchema,
     password: z.string().min(1).max(128),
   })
   .strict();
@@ -135,6 +140,7 @@ export interface ApiError {
 
 export interface SessionUser {
   id: string;
+  username: string | null;
   email: string;
   nickname: string;
   locale: string;

@@ -17,6 +17,7 @@ export const environmentSchema = z.object({
   ACCESS_TOKEN_TTL: z.string().default("15m"),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   COOKIE_SECURE: booleanFromEnvironment.default(false),
+  COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
   COOKIE_DOMAIN: z.string().optional(),
   REDIS_URL: z.string().optional(),
   STORAGE_DRIVER: z.enum(["minio", "local"]).default("local"),

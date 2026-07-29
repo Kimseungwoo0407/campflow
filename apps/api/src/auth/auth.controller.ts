@@ -61,7 +61,7 @@ export class AuthController {
   @HttpCode(200)
   @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post("login")
-  @ApiOperation({ summary: "이메일 로그인" })
+  @ApiOperation({ summary: "이름 아이디 또는 이메일 로그인" })
   async login(
     @Body(new ZodValidationPipe(loginSchema)) input: LoginInput,
     @Req() request: RequestContext,
@@ -172,7 +172,7 @@ export class AuthController {
   private cookieBase(): CookieOptions {
     return {
       secure: this.config.get<boolean>("COOKIE_SECURE", false),
-      sameSite: "lax",
+      sameSite: this.config.get<"lax" | "strict" | "none">("COOKIE_SAME_SITE", "lax"),
     };
   }
 
