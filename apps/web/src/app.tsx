@@ -13,8 +13,7 @@ import {
 import { GroupDetailPage } from "./pages/group-detail-page";
 import { GroupsPage } from "./pages/groups-page";
 import { InvitePage } from "./pages/invite-page";
-import { LandingPage } from "./pages/landing-page";
-import { LoginPage, SignUpPage } from "./pages/auth-pages";
+import { LoginPage } from "./pages/auth-pages";
 import { NotFoundPage } from "./pages/not-found-page";
 import { SettingsPage } from "./pages/settings-page";
 import { useAuthStore } from "./stores/auth";
@@ -36,9 +35,9 @@ export function App() {
   const serverOnline = health.isPending || health.isSuccess;
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignUpPage />} />
+      <Route path="/signup" element={<Navigate to="/login" replace />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
