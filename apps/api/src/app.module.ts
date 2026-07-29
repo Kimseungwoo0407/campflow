@@ -4,6 +4,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
+import { CollaborationModule } from "./collaboration/collaboration.module";
 import { AccessAuthGuard } from "./common/auth/access-auth.guard";
 import { EnvelopeInterceptor } from "./common/http/envelope.interceptor";
 import { HttpExceptionFilter } from "./common/http/http-exception.filter";
@@ -11,7 +12,13 @@ import { requestContextMiddleware } from "./common/http/request-context.middlewa
 import { validateEnvironment } from "./config/environment";
 import { GroupsModule } from "./groups/groups.module";
 import { HealthModule } from "./health/health.module";
+import { ExpensesModule } from "./expenses/expenses.module";
+import { PlacesModule } from "./places/places.module";
+import { PlanningModule } from "./planning/planning.module";
+import { PointsModule } from "./points/points.module";
+import { PreparationModule } from "./preparation/preparation.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { TripsModule } from "./trips/trips.module";
 import { UsersModule } from "./users/users.module";
 
 @Module({
@@ -27,6 +34,13 @@ import { UsersModule } from "./users/users.module";
     AuthModule,
     UsersModule,
     GroupsModule,
+    TripsModule,
+    PointsModule,
+    PlacesModule,
+    PlanningModule,
+    CollaborationModule,
+    PreparationModule,
+    ExpensesModule,
     HealthModule,
   ],
   providers: [

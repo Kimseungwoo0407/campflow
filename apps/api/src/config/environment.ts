@@ -21,6 +21,7 @@ export const environmentSchema = z.object({
   COOKIE_DOMAIN: z.string().optional(),
   REDIS_URL: z.string().optional(),
   STORAGE_DRIVER: z.enum(["minio", "local"]).default("local"),
+  STORAGE_LOCAL_PATH: z.string().min(1).default("storage-data/uploads"),
   S3_ENDPOINT: z.string().optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),

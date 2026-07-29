@@ -16,7 +16,21 @@ import { InvitePage } from "./pages/invite-page";
 import { LoginPage } from "./pages/auth-pages";
 import { NotFoundPage } from "./pages/not-found-page";
 import { SettingsPage } from "./pages/settings-page";
+import { TripDetailPage, TripsPage } from "./pages/trips-pages";
+import {
+  TripBoardPage,
+  TripDiscoverPage,
+  TripExpensesPage,
+  TripFilesPage,
+  TripItineraryPage,
+  TripLoungePage,
+  TripMealsPage,
+  TripPollsPage,
+  TripTasksPage,
+  TripTransportPage,
+} from "./pages/trip-workspace-pages";
 import { useAuthStore } from "./stores/auth";
+import { TripPointsPage } from "./pages/trip-points-page";
 
 export function App() {
   const setSession = useAuthStore((state) => state.setSession);
@@ -47,6 +61,20 @@ export function App() {
           <Route path="/app" element={<DashboardPage />} />
           <Route path="/groups" element={<GroupsPage />} />
           <Route path="/groups/:groupId" element={<GroupDetailPage />} />
+          <Route path="/trips" element={<TripsPage />} />
+          <Route path="/trips/:tripId" element={<TripDetailPage />} />
+          <Route path="/trips/:tripId/discover" element={<TripDiscoverPage />} />
+          <Route path="/trips/:tripId/candidates" element={<TripDiscoverPage />} />
+          <Route path="/trips/:tripId/polls" element={<TripPollsPage />} />
+          <Route path="/trips/:tripId/itinerary" element={<TripItineraryPage />} />
+          <Route path="/trips/:tripId/tasks" element={<TripTasksPage />} />
+          <Route path="/trips/:tripId/meals" element={<TripMealsPage />} />
+          <Route path="/trips/:tripId/transport" element={<TripTransportPage />} />
+          <Route path="/trips/:tripId/expenses" element={<TripExpensesPage />} />
+          <Route path="/trips/:tripId/points" element={<TripPointsPage />} />
+          <Route path="/trips/:tripId/board" element={<TripBoardPage />} />
+          <Route path="/trips/:tripId/lounge" element={<TripLoungePage />} />
+          <Route path="/trips/:tripId/files" element={<TripFilesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/dashboard" element={<Navigate to="/app" replace />} />
         </Route>

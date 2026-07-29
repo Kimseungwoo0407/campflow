@@ -1,13 +1,4 @@
-import {
-  Bell,
-  Home,
-  LogOut,
-  Map,
-  Menu,
-  Settings,
-  Users,
-  X,
-} from "lucide-react";
+import { Bell, CalendarRange, Home, LogOut, Menu, Settings, Users, X } from "lucide-react";
 import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@campflow/ui";
@@ -18,6 +9,7 @@ import { ServerStatusBanner } from "./server-status-banner";
 const navItems = [
   { to: "/app", label: "홈", icon: Home },
   { to: "/groups", label: "내 그룹", icon: Users },
+  { to: "/trips", label: "내 여행", icon: CalendarRange },
 ] as const;
 
 export function AppLayout({ serverOnline }: { serverOnline: boolean }) {
@@ -94,10 +86,6 @@ export function AppLayout({ serverOnline }: { serverOnline: boolean }) {
             <span>{label}</span>
           </NavLink>
         ))}
-        <span className="mobile-nav__disabled" aria-label="장소 탐색은 Phase 3에서 제공">
-          <Map size={20} aria-hidden="true" />
-          <span>장소</span>
-        </span>
       </nav>
     </div>
   );

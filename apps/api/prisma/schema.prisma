@@ -30,25 +30,177 @@ enum AuthTokenPurpose {
   PASSWORD_RESET
 }
 
+enum TripStatus {
+  DRAFT
+  SEARCHING
+  VOTING
+  CONFIRMED
+  IN_PROGRESS
+  SETTLING
+  ARCHIVED
+}
+
+enum TripRole {
+  MANAGER
+  MEMBER
+  GUEST
+}
+
+enum CandidateStatus {
+  ACTIVE
+  SELECTED
+  REJECTED
+}
+
+enum PollType {
+  SINGLE
+  MULTIPLE
+  RATING
+  RANKED
+  YES_NO
+}
+
+enum PollStatus {
+  OPEN
+  CLOSED
+}
+
+enum ItineraryItemType {
+  TRANSPORT
+  PLACE
+  MEAL
+  SHOPPING
+  CHECK_IN
+  CHECK_OUT
+  ACTIVITY
+  FREE_TIME
+  NOTICE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ExpenseCategory {
+  ACCOMMODATION
+  TRANSPORT
+  FOOD
+  ACTIVITY
+  OTHER
+}
+
+enum SettlementStatus {
+  DRAFT
+  LOCKED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+}
+
+enum PointEntryKind {
+  EARN
+  SPEND
+  WIN
+  LOSS
+  ADJUST
+}
+
+enum RewardType {
+  PRIVILEGE
+  TARGET_PENALTY
+  PROTECTION
+}
+
+enum RewardRedemptionStatus {
+  APPLIED
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum GameType {
+  TAP
+  ODD_EVEN
+  SNAIL_RACE
+  RPS_ROULETTE
+  PENALTY_KICK
+  LOTTERY
+}
+
+enum PenaltyAction {
+  KICK
+  DIVE
+}
+
+enum PenaltyDirection {
+  LEFT
+  CENTER
+  RIGHT
+}
+
+enum PenaltyMatchStatus {
+  OPEN
+  RESOLVED
+  CANCELLED
+}
+
 model User {
-  id                 String      @id
-  username           String?     @unique
-  email              String      @unique
-  passwordHash       String
-  nickname           String
-  locale             String      @default("ko-KR")
-  timezone           String      @default("Asia/Seoul")
-  status             UserStatus  @default(ACTIVE)
-  emailVerifiedAt    DateTime?
-  mustChangePassword Boolean     @default(false)
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
-  profile            UserProfile?
-  sessions           Session[]
-  authTokens         AuthToken[]
-  ownedGroups         Group[]     @relation("GroupOwner")
-  groupMemberships    GroupMember[]
-  auditLogs           AuditLog[]  @relation("AuditActor")
+  id                    String                 @id
+  username              String?                @unique
+  email                 String                 @unique
+  passwordHash          String
+  nickname              String
+  locale                String                 @default("ko-KR")
+  timezone              String                 @default("Asia/Seoul")
+  status                UserStatus             @default(ACTIVE)
+  emailVerifiedAt       DateTime?
+  mustChangePassword    Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  profile               UserProfile?
+  sessions              Session[]
+  authTokens            AuthToken[]
+  ownedGroups           Group[]                @relation("GroupOwner")
+  groupMemberships      GroupMember[]
+  createdTrips          Trip[]                 @relation("TripCreator")
+  tripMemberships       TripMember[]
+  tripDecisions         DecisionLog[]          @relation("DecisionActor")
+  createdPlaces         Place[]                @relation("PlaceCreator")
+  addedCandidates       TripCandidate[]        @relation("CandidateAdder")
+  createdPolls          Poll[]                 @relation("PollCreator")
+  pollVotes             PollVote[]
+  itineraryAssignments  ItineraryItem[]        @relation("ItineraryAssignee")
+  itineraryCreations    ItineraryItem[]        @relation("ItineraryCreator")
+  boardPosts            BoardPost[]
+  comments              Comment[]
+  chatMessages          ChatMessage[]
+  createdTasks          TripTask[]             @relation("TaskCreator")
+  assignedTasks         TripTask[]             @relation("TaskAssignee")
+  assignedMeals         Meal[]                 @relation("MealAssignee")
+  ownedVehicles         Vehicle[]              @relation("VehicleOwner")
+  drivenVehicles        Vehicle[]              @relation("VehicleDriver")
+  rideAssignments       RideAssignment[]
+  uploadedFiles         FileObject[]
+  paidExpenses          Expense[]              @relation("ExpensePayer")
+  expenseShares         ExpenseShare[]
+  lockedSettlements     SettlementRevision[]   @relation("SettlementLocker")
+  paymentsFrom          SettlementPayment[]    @relation("PaymentFrom")
+  paymentsTo            SettlementPayment[]    @relation("PaymentTo")
+  notifications         Notification[]
+  pointWallets          PointWallet[]
+  pointEntries          PointLedger[]
+  rewardPurchases       RewardRedemption[]     @relation("RewardBuyer")
+  rewardTargets         RewardRedemption[]     @relation("RewardTarget")
+  gameRounds            GameRound[]
+  penaltyMatchesCreated PenaltyMatch[]         @relation("PenaltyCreator")
+  penaltyMatchesJoined  PenaltyMatch[]         @relation("PenaltyOpponent")
+  penaltyMatchesWon     PenaltyMatch[]         @relation("PenaltyWinner")
+  characterProfiles     TripCharacterProfile[]
+  auditLogs             AuditLog[]             @relation("AuditActor")
 }
 
 model AuthToken {
@@ -108,20 +260,21 @@ model Group {
   owner       User          @relation("GroupOwner", fields: [ownerId], references: [id])
   members     GroupMember[]
   invites     Invite[]
+  trips       Trip[]
 
   @@index([ownerId, deletedAt])
 }
 
 model GroupMember {
-  groupId    String
-  userId     String
-  role       GroupRole    @default(MEMBER)
+  groupId     String
+  userId      String
+  role        GroupRole    @default(MEMBER)
   displayName String?
-  status     MemberStatus @default(ACTIVE)
-  joinedAt   DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  group      Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      MemberStatus @default(ACTIVE)
+  joinedAt    DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([groupId, userId])
   @@index([userId, status])
@@ -144,6 +297,551 @@ model Invite {
   group           Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@index([groupId, expiresAt])
+}
+
+model Trip {
+  id                String                 @id
+  groupId           String
+  createdById       String
+  seedKey           String?                @unique
+  title             String
+  purpose           String?
+  status            TripStatus             @default(SEARCHING)
+  startDate         DateTime               @db.Date
+  endDate           DateTime               @db.Date
+  dateRangeStart    DateTime               @db.Date
+  dateRangeEnd      DateTime               @db.Date
+  nights            Int                    @default(1)
+  regionText        String                 @default("가평")
+  budgetPerPerson   Int?
+  attendeeCount     Int
+  settings          Json                   @default("{}")
+  version           Int                    @default(1)
+  deletedAt         DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  group             Group                  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy         User                   @relation("TripCreator", fields: [createdById], references: [id])
+  members           TripMember[]
+  decisions         DecisionLog[]
+  candidates        TripCandidate[]
+  polls             Poll[]
+  itineraryDays     ItineraryDay[]
+  posts             BoardPost[]
+  messages          ChatMessage[]
+  tasks             TripTask[]
+  meals             Meal[]
+  vehicles          Vehicle[]
+  files             FileObject[]
+  expenses          Expense[]
+  settlements       SettlementRevision[]
+  pointWallets      PointWallet[]
+  pointEntries      PointLedger[]
+  rewardItems       RewardItem[]
+  rewardPurchases   RewardRedemption[]
+  gameRounds        GameRound[]
+  penaltyMatches    PenaltyMatch[]
+  characterProfiles TripCharacterProfile[]
+
+  @@index([groupId, deletedAt, updatedAt])
+  @@index([status, startDate])
+}
+
+model TripMember {
+  tripId           String
+  userId           String
+  role             TripRole @default(MEMBER)
+  attendanceStatus String   @default("ATTENDING")
+  isCoreMember     Boolean  @default(false)
+  joinedAt         DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  trip             Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tripId, userId])
+  @@index([userId, attendanceStatus])
+}
+
+model DecisionLog {
+  id           String   @id
+  tripId       String
+  decisionType String
+  entityId     String?
+  decidedById  String
+  snapshot     Json     @default("{}")
+  reason       String?
+  createdAt    DateTime @default(now())
+  trip         Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  decidedBy    User     @relation("DecisionActor", fields: [decidedById], references: [id])
+
+  @@index([tripId, createdAt])
+}
+
+model Place {
+  id              String          @id
+  canonicalName   String
+  address         String
+  roadAddress     String?
+  lat             Float
+  lng             Float
+  phone           String?
+  websiteUrl      String?
+  category        String          @default("글램핑")
+  description     String?
+  amenities       String[]        @default([])
+  sourceProvider  String          @default("USER")
+  sourceUrl       String?
+  isSample        Boolean         @default(false)
+  createdByUserId String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  createdBy       User?           @relation("PlaceCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  candidates      TripCandidate[]
+  itineraryItems  ItineraryItem[]
+
+  @@index([canonicalName])
+  @@index([lat, lng])
+}
+
+model TripCandidate {
+  id             String          @id
+  tripId         String
+  placeId        String
+  addedById      String
+  status         CandidateStatus @default(ACTIVE)
+  estimatedTotal Int?
+  priceNote      String?
+  pros           String[]        @default([])
+  cons           String[]        @default([])
+  note           String?
+  version        Int             @default(1)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  trip           Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  place          Place           @relation(fields: [placeId], references: [id], onDelete: Restrict)
+  addedBy        User            @relation("CandidateAdder", fields: [addedById], references: [id])
+
+  @@unique([tripId, placeId])
+  @@index([tripId, status, createdAt])
+}
+
+model Poll {
+  id                String     @id
+  tripId            String
+  createdById       String
+  type              PollType
+  title             String
+  description       String?
+  options           Json
+  anonymous         Boolean    @default(false)
+  resultsVisibility String     @default("ALWAYS")
+  closesAt          DateTime?
+  status            PollStatus @default(OPEN)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  trip              Trip       @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  createdBy         User       @relation("PollCreator", fields: [createdById], references: [id])
+  votes             PollVote[]
+
+  @@index([tripId, status, createdAt])
+}
+
+model PollVote {
+  pollId    String
+  userId    String
+  payload   Json
+  revision  Int      @default(1)
+  castAt    DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([pollId, userId])
+  @@index([userId, castAt])
+}
+
+model ItineraryDay {
+  id        String          @id
+  tripId    String
+  date      DateTime        @db.Date
+  title     String
+  sortOrder Int
+  version   Int             @default(1)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  trip      Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  items     ItineraryItem[]
+
+  @@unique([tripId, date])
+  @@index([tripId, sortOrder])
+}
+
+model ItineraryItem {
+  id           String            @id
+  dayId        String
+  type         ItineraryItemType
+  title        String
+  startsAt     DateTime?
+  endsAt       DateTime?
+  placeId      String?
+  assigneeId   String?
+  createdById  String
+  costEstimate Int?
+  details      Json              @default("{}")
+  sortOrder    Int
+  version      Int               @default(1)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  day          ItineraryDay      @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  place        Place?            @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  assignee     User?             @relation("ItineraryAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy    User              @relation("ItineraryCreator", fields: [createdById], references: [id])
+
+  @@index([dayId, sortOrder])
+}
+
+model BoardPost {
+  id           String    @id
+  tripId       String
+  authorId     String
+  category     String
+  title        String
+  bodyMarkdown String
+  pinnedAt     DateTime?
+  lockedAt     DateTime?
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  trip         Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  author       User      @relation(fields: [authorId], references: [id])
+  comments     Comment[]
+
+  @@index([tripId, createdAt])
+}
+
+model Comment {
+  id           String    @id
+  postId       String
+  parentId     String?
+  authorId     String
+  bodyMarkdown String
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  post         BoardPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent       Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      Comment[] @relation("CommentReplies")
+  author       User      @relation(fields: [authorId], references: [id])
+
+  @@index([postId, createdAt])
+}
+
+model ChatMessage {
+  id              String    @id
+  tripId          String
+  authorId        String
+  body            String
+  clientMessageId String
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  trip            Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  author          User      @relation(fields: [authorId], references: [id])
+
+  @@unique([tripId, clientMessageId])
+  @@index([tripId, createdAt])
+}
+
+model TripTask {
+  id          String       @id
+  tripId      String
+  createdById String
+  assigneeId  String?
+  category    String
+  title       String
+  note        String?
+  dueAt       DateTime?
+  priority    TaskPriority @default(MEDIUM)
+  quantity    String?
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  trip        Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  createdBy   User         @relation("TaskCreator", fields: [createdById], references: [id])
+  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  @@index([tripId, completedAt, dueAt])
+}
+
+model Meal {
+  id          String   @id
+  tripId      String
+  assigneeId  String?
+  mealAt      DateTime
+  menu        String
+  note        String?
+  ingredients Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  assignee    User?    @relation("MealAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  @@index([tripId, mealAt])
+}
+
+model Vehicle {
+  id                String           @id
+  tripId            String
+  ownerId           String
+  driverId          String
+  name              String
+  seats             Int
+  departureLocation String
+  departureAt       DateTime?
+  note              String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  trip              Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  owner             User             @relation("VehicleOwner", fields: [ownerId], references: [id])
+  driver            User             @relation("VehicleDriver", fields: [driverId], references: [id])
+  passengers        RideAssignment[]
+
+  @@index([tripId])
+}
+
+model RideAssignment {
+  vehicleId String
+  userId    String
+  createdAt DateTime @default(now())
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([vehicleId, userId])
+  @@index([userId])
+}
+
+model FileObject {
+  id           String   @id
+  tripId       String
+  ownerId      String
+  originalName String
+  mime         String
+  size         Int
+  storageKey   String
+  status       String   @default("READY")
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now())
+  trip         Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  owner        User     @relation(fields: [ownerId], references: [id])
+
+  @@index([tripId, createdAt])
+}
+
+model Expense {
+  id        String          @id
+  tripId    String
+  payerId   String
+  amount    Int
+  category  ExpenseCategory
+  spentAt   DateTime
+  memo      String
+  revision  Int             @default(1)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  trip      Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  payer     User            @relation("ExpensePayer", fields: [payerId], references: [id])
+  shares    ExpenseShare[]
+
+  @@index([tripId, spentAt])
+}
+
+model ExpenseShare {
+  expenseId String
+  userId    String
+  amount    Int
+  weight    Float   @default(1)
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([expenseId, userId])
+  @@index([userId])
+}
+
+model SettlementRevision {
+  id         String              @id
+  tripId     String
+  revisionNo Int
+  status     SettlementStatus    @default(DRAFT)
+  result     Json
+  lockedById String?
+  lockedAt   DateTime?
+  createdAt  DateTime            @default(now())
+  trip       Trip                @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  lockedBy   User?               @relation("SettlementLocker", fields: [lockedById], references: [id], onDelete: SetNull)
+  payments   SettlementPayment[]
+
+  @@unique([tripId, revisionNo])
+  @@index([tripId, createdAt])
+}
+
+model SettlementPayment {
+  id           String             @id
+  settlementId String
+  fromUserId   String
+  toUserId     String
+  amount       Int
+  status       PaymentStatus      @default(PENDING)
+  paidAt       DateTime?
+  settlement   SettlementRevision @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  fromUser     User               @relation("PaymentFrom", fields: [fromUserId], references: [id])
+  toUser       User               @relation("PaymentTo", fields: [toUserId], references: [id])
+
+  @@index([settlementId, status])
+}
+
+model PointWallet {
+  tripId          String
+  userId          String
+  balance         Int       @default(0)
+  earnedTotal     Int       @default(0)
+  spentTotal      Int       @default(0)
+  checkInStreak   Int       @default(0)
+  lastCheckInDate DateTime? @db.Date
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  trip            Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tripId, userId])
+  @@index([tripId, balance])
+}
+
+model PointLedger {
+  id           String         @id
+  tripId       String
+  userId       String
+  delta        Int
+  balanceAfter Int
+  kind         PointEntryKind
+  reason       String
+  sourceKey    String?
+  metadata     Json           @default("{}")
+  createdAt    DateTime       @default(now())
+  trip         Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, userId, sourceKey])
+  @@index([tripId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model RewardItem {
+  id          String             @id
+  tripId      String
+  seedKey     String?
+  title       String
+  description String
+  cost        Int
+  type        RewardType
+  effect      Json               @default("{}")
+  active      Boolean            @default(true)
+  sortOrder   Int                @default(0)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  trip        Trip               @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  redemptions RewardRedemption[]
+
+  @@unique([tripId, seedKey])
+  @@index([tripId, active, sortOrder])
+}
+
+model RewardRedemption {
+  id           String                 @id
+  tripId       String
+  rewardItemId String
+  buyerId      String
+  targetId     String?
+  cost         Int
+  status       RewardRedemptionStatus @default(APPLIED)
+  note         String?
+  outcome      Json                   @default("{}")
+  resolvedAt   DateTime?
+  createdAt    DateTime               @default(now())
+  trip         Trip                   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  rewardItem   RewardItem             @relation(fields: [rewardItemId], references: [id], onDelete: Restrict)
+  buyer        User                   @relation("RewardBuyer", fields: [buyerId], references: [id])
+  target       User?                  @relation("RewardTarget", fields: [targetId], references: [id], onDelete: SetNull)
+
+  @@index([tripId, createdAt])
+  @@index([targetId, status])
+}
+
+model GameRound {
+  id            String   @id
+  tripId        String
+  userId        String
+  gameType      GameType
+  clientRoundId String?
+  wager         Int      @default(0)
+  score         Int?
+  pointDelta    Int
+  result        Json
+  createdAt     DateTime @default(now())
+  trip          Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, userId, clientRoundId])
+  @@index([tripId, gameType, createdAt])
+  @@index([tripId, score])
+}
+
+model PenaltyMatch {
+  id                String             @id
+  tripId            String
+  creatorId         String
+  opponentId        String?
+  winnerId          String?
+  creatorAction     PenaltyAction
+  creatorDirection  PenaltyDirection
+  opponentAction    PenaltyAction?
+  opponentDirection PenaltyDirection?
+  wager             Int
+  status            PenaltyMatchStatus @default(OPEN)
+  resolvedAt        DateTime?
+  createdAt         DateTime           @default(now())
+  trip              Trip               @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  creator           User               @relation("PenaltyCreator", fields: [creatorId], references: [id])
+  opponent          User?              @relation("PenaltyOpponent", fields: [opponentId], references: [id], onDelete: SetNull)
+  winner            User?              @relation("PenaltyWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+
+  @@index([tripId, status, createdAt])
+}
+
+model TripCharacterProfile {
+  tripId    String
+  userId    String
+  concept   String
+  reason    String
+  mime      String
+  imageData Bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tripId, userId])
+}
+
+model Notification {
+  id                String    @id
+  userId            String
+  type              String
+  payload           Json
+  readAt            DateTime?
+  deliveredChannels String[]  @default(["IN_APP"])
+  createdAt         DateTime  @default(now())
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
 }
 
 model AuditLog {

@@ -55,7 +55,8 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
     await request(app.getHttpServer())
       .post("/v1/auth/login")
       .send({
-        identifier: (await prisma.user.findUniqueOrThrow({ where: { id: owner.user.id } })).username,
+        identifier: (await prisma.user.findUniqueOrThrow({ where: { id: owner.user.id } }))
+          .username,
         password: "SafePassword2026!",
       })
       .expect(200);
@@ -79,9 +80,7 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       .expect(201);
     const invite = (inviteResponse.body as ApiSuccess<{ token: string }>).data;
 
-    await request(app.getHttpServer())
-      .get(`/v1/invites/${invite.token}/preview`)
-      .expect(200);
+    await request(app.getHttpServer()).get(`/v1/invites/${invite.token}/preview`).expect(200);
 
     await request(app.getHttpServer())
       .post(`/v1/invites/${invite.token}/accept`)
@@ -93,6 +92,154 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       .set("authorization", `Bearer ${friend.accessToken}`)
       .expect(200);
 
+    const tripResponse = await request(app.getHttpServer())
+      .post(`/v1/groups/${group.id}/trips`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        title: "E2E 고정 날짜 여행",
+        purpose: "Phase 2 권한과 날짜 검증",
+        regionText: "가평",
+        budgetPerPerson: 180000,
+        attendeeCount: 2,
+      })
+      .expect(201);
+    const trip = (
+      tripResponse.body as ApiSuccess<{
+        id: string;
+        startDate: string;
+        endDate: string;
+        status: string;
+      }>
+    ).data;
+    expect(trip.startDate.slice(0, 10)).toBe("2026-08-29");
+    expect(trip.endDate.slice(0, 10)).toBe("2026-08-30");
+    expect(trip.status).toBe("SEARCHING");
+
+    await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/transition`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({ status: "VOTING" })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/transition`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({ status: "VOTING", reason: "후보 수집 완료" })
+      .expect(201);
+
+    const ownerCheckIn = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/check-in`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .expect(201);
+    expect(ownerCheckIn.body).toMatchObject({
+      data: { alreadyCheckedIn: false, awarded: 20 },
+    });
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/check-in`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .expect(201)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({
+          data: { alreadyCheckedIn: true, awarded: 0 },
+        });
+      });
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/check-in`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .expect(201);
+
+    const placeResponse = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/places/manual`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        canonicalName: "E2E 비공개 글램핑장",
+        address: "경기도 가평군 테스트로 1",
+        lat: 37.8,
+        lng: 127.5,
+        category: "글램핑",
+        amenities: ["주차"],
+      })
+      .expect(201);
+    const place = (placeResponse.body as ApiSuccess<{ id: string }>).data;
+
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/candidates`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({ placeId: place.id, pros: ["테스트"], cons: [] })
+      .expect(201);
+
+    const pollResponse = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/polls`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        type: "SINGLE",
+        title: "E2E 메뉴 투표",
+        optionLabels: ["바비큐", "닭갈비"],
+        anonymous: false,
+        resultsVisibility: "ALWAYS",
+      })
+      .expect(201);
+    const poll = (
+      pollResponse.body as ApiSuccess<{
+        id: string;
+        options: Array<{ id: string }>;
+      }>
+    ).data;
+    await request(app.getHttpServer())
+      .post(`/v1/polls/${poll.id}/votes`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({ optionIds: [poll.options[0]!.id] })
+      .expect(201);
+
+    const tapResult = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/games/tap-score`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({ score: 40, clientRoundId: randomUUID() })
+      .expect(201);
+    expect(tapResult.body).toMatchObject({
+      data: { gameType: "TAP", score: 40, pointDelta: 15 },
+    });
+
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/games/odd-even`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({ choice: "ODD", wager: 5, clientRoundId: randomUUID() })
+      .expect(201);
+
+    const penaltyResponse = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/games/penalty-matches`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({ action: "KICK", direction: "RIGHT", wager: 10 })
+      .expect(201);
+    const penalty = (penaltyResponse.body as ApiSuccess<{ id: string }>).data;
+    const hiddenPenalty = await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}/games/penalty-matches`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .expect(200);
+    expect(hiddenPenalty.body.data[0]).not.toHaveProperty("creatorDirection");
+    await request(app.getHttpServer())
+      .post(`/v1/games/penalty-matches/${penalty.id}/join`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({ action: "DIVE", direction: "RIGHT" })
+      .expect(201)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({ data: { status: "RESOLVED", goal: false } });
+      });
+
+    const pointsDashboard = await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}/points`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(pointsDashboard.body.data.balanceLeaderboard).toHaveLength(2);
+    expect(pointsDashboard.body.data.rules.games.lottery.tiers[0]).toMatchObject({
+      probability: "0.0000001%",
+    });
+
     const denied = await request(app.getHttpServer())
       .get(`/v1/groups/${group.id}`)
       .set("authorization", `Bearer ${outsider.accessToken}`)
@@ -100,5 +247,14 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
     expect(denied.body).toMatchObject({
       error: { code: "GROUP_NOT_FOUND" },
     });
+
+    await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}`)
+      .set("authorization", `Bearer ${outsider.accessToken}`)
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}/points`)
+      .set("authorization", `Bearer ${outsider.accessToken}`)
+      .expect(404);
   });
 });

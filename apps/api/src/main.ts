@@ -4,12 +4,14 @@ import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import cookieParser from "cookie-parser";
+import { json, urlencoded } from "express";
 import helmet from "helmet";
 import { AppModule } from "./app.module";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
+    bodyParser: false,
   });
   const config = app.get(ConfigService);
   const origins = config
@@ -34,12 +36,11 @@ async function bootstrap(): Promise<void> {
       referrerPolicy: { policy: "strict-origin-when-cross-origin" },
     }),
   );
+  app.use(json({ limit: "8mb" }));
+  app.use(urlencoded({ extended: true, limit: "8mb" }));
   app.use(cookieParser());
   app.enableCors({
-    origin(
-      origin: string | undefined,
-      callback: (error: Error | null, allow?: boolean) => void,
-    ) {
+    origin(origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) {
       if (!origin || origins.includes(origin)) {
         callback(null, true);
         return;

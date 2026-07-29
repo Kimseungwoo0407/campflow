@@ -36,6 +36,8 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    volumes:
+      - campflow_uploads:/app/storage-data
     security_opt:
       - no-new-privileges:true
 
@@ -104,3 +106,4 @@ volumes:
   campflow_postgres:
   campflow_redis:
   campflow_minio:
+  campflow_uploads:

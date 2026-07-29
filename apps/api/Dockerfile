@@ -23,6 +23,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 RUN addgroup -S campflow && adduser -S -G campflow campflow
 COPY --from=build --chown=campflow:campflow /app /app
+RUN mkdir -p /app/storage-data && chown -R campflow:campflow /app/storage-data
 USER campflow
 EXPOSE 4000
 CMD ["node", "apps/api/dist/main.js"]

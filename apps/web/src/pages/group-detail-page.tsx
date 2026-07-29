@@ -1,9 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Copy, Link2, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Copy, Link2, ShieldCheck, UserRound } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useParams } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
 import { Button, Card, Spinner } from "@campflow/ui";
 import {
@@ -13,6 +13,7 @@ import {
   type MemberStatus,
 } from "@campflow/contracts";
 import { apiRequest, ApiClientError } from "../api/client";
+import type { TripSummary } from "./trips-pages";
 
 interface GroupMember {
   role: GroupRole;
@@ -49,6 +50,8 @@ interface CreatedInvite {
 export function GroupDetailPage() {
   const { groupId } = useParams();
   const [copied, setCopied] = useState(false);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const group = useQuery({
     queryKey: ["group", groupId],
     queryFn: () => apiRequest<GroupDetail>(`groups/${groupId ?? ""}`),
@@ -73,6 +76,31 @@ export function GroupDetailPage() {
         method: "POST",
         body: JSON.stringify(input),
       }),
+  });
+  const trips = useQuery({
+    queryKey: ["group-trips", groupId],
+    queryFn: () => apiRequest<TripSummary[]>(`groups/${groupId ?? ""}/trips`),
+    enabled: Boolean(groupId),
+  });
+  const createTrip = useMutation({
+    mutationFn: () =>
+      apiRequest<TripSummary>(`groups/${groupId ?? ""}/trips`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: "8월 29~30일 가평 글램핑",
+          purpose: "친구들과 함께 준비하는 1박 2일 글램핑",
+          regionText: "가평",
+          budgetPerPerson: 180000,
+          attendeeCount: group.data?.members.length ?? 4,
+        }),
+      }),
+    onSuccess: async (created) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["trips"] }),
+        queryClient.invalidateQueries({ queryKey: ["group-trips", groupId] }),
+      ]);
+      navigate(`/trips/${created.id}`);
+    },
   });
 
   async function copyInvite() {
@@ -106,7 +134,9 @@ export function GroupDetailPage() {
     <div className="page">
       <header className="page-heading page-heading--split">
         <div>
-          <span className="eyebrow">{group.data.myRole === "OWNER" ? "내가 관리하는 그룹" : "참여 중"}</span>
+          <span className="eyebrow">
+            {group.data.myRole === "OWNER" ? "내가 관리하는 그룹" : "참여 중"}
+          </span>
           <h1>{group.data.name}</h1>
           <p>{group.data.description || "그룹 설명이 아직 없습니다."}</p>
         </div>
@@ -118,6 +148,42 @@ export function GroupDetailPage() {
 
       <div className="group-detail-grid">
         <section>
+          <div className="section-heading-row">
+            <h2 className="section-title">여행</h2>
+            {group.data.myRole === "OWNER" && trips.data?.length === 0 && (
+              <Button onClick={() => createTrip.mutate()} disabled={createTrip.isPending}>
+                <CalendarDays size={17} />
+                {createTrip.isPending ? "여행 만드는 중…" : "8월 29~30일 여행 만들기"}
+              </Button>
+            )}
+          </div>
+          {createTrip.error && (
+            <p className="form-error" role="alert">
+              {createTrip.error instanceof ApiClientError
+                ? createTrip.error.message
+                : "여행을 만들지 못했습니다."}
+            </p>
+          )}
+          <div className="group-trip-list">
+            {trips.data?.map((trip) => (
+              <Link className="group-trip-card" to={`/trips/${trip.id}`} key={trip.id}>
+                <span>
+                  <CalendarDays size={20} />
+                </span>
+                <span>
+                  <strong>{trip.title}</strong>
+                  <small>
+                    2026년 8월 29~30일 · {trip.regionText} · {trip.progress}%
+                  </small>
+                </span>
+                <ArrowRight size={18} />
+              </Link>
+            ))}
+          </div>
+          {trips.data?.length === 0 && group.data.myRole !== "OWNER" && (
+            <p className="empty-inline">그룹 소유자가 여행을 만들면 다음 단계가 열립니다.</p>
+          )}
+
           <h2 className="section-title">멤버 {group.data.members.length}명</h2>
           <div className="member-list">
             {group.data.members.map((member) => (
@@ -128,7 +194,11 @@ export function GroupDetailPage() {
                 <span className="member-card__body">
                   <strong>{member.user.nickname}</strong>
                   <small>
-                    {member.role === "OWNER" ? "소유자" : member.role === "GUEST" ? "게스트" : "멤버"}
+                    {member.role === "OWNER"
+                      ? "소유자"
+                      : member.role === "GUEST"
+                        ? "게스트"
+                        : "멤버"}
                     {member.status === "PENDING" ? " · 승인 대기" : ""}
                   </small>
                 </span>

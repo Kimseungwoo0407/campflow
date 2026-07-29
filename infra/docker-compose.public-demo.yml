@@ -16,6 +16,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-campflow}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-campflow}
       REDIS_URL: redis://redis:6379
       STORAGE_DRIVER: minio
+      STORAGE_LOCAL_PATH: /app/storage-data/uploads
       S3_ENDPOINT: http://minio:9000
       COOKIE_SECURE: "true"
       COOKIE_SAME_SITE: none
@@ -42,9 +43,8 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-    security_opt:
-      - no-new-privileges:true
-
+    volumes:
+      - campflow_dev_uploads:/app/storage-data
   quick-tunnel:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
@@ -54,3 +54,6 @@ services:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
+
+volumes:
+  campflow_dev_uploads:
