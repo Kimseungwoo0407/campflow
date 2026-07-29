@@ -224,43 +224,21 @@ async function main() {
     ),
   );
 
-  for (const [index, user] of users.entries()) {
-    const sourceKey = "seed:welcome-points";
-    const existingPointSeed = await prisma.pointLedger.findUnique({
-      where: {
-        tripId_userId_sourceKey: { tripId: trip.id, userId: user.id, sourceKey },
-      },
-    });
-    if (!existingPointSeed) {
-      const bonus = 400 - index * 25;
-      const wallet = await prisma.pointWallet.upsert({
+  await Promise.all(
+    users.map((user) =>
+      prisma.pointWallet.upsert({
         where: { tripId_userId: { tripId: trip.id, userId: user.id } },
-        update: {
-          balance: { increment: bonus },
-          earnedTotal: { increment: bonus },
-        },
+        update: {},
         create: {
           tripId: trip.id,
           userId: user.id,
-          balance: bonus,
-          earnedTotal: bonus,
+          balance: 0,
+          earnedTotal: 0,
+          spentTotal: 0,
         },
-      });
-      await prisma.pointLedger.create({
-        data: {
-          id: newId(),
-          tripId: trip.id,
-          userId: user.id,
-          delta: bonus,
-          balanceAfter: wallet.balance,
-          kind: "EARN",
-          reason: "여행 오픈 기념 포인트",
-          sourceKey,
-          metadata: { seed: true },
-        },
-      });
-    }
-  }
+      }),
+    ),
+  );
 
   const characterRoots = [
     resolve(process.cwd(), "character"),

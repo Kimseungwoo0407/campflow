@@ -12,11 +12,13 @@ import {
 } from "./pages/account-recovery-pages";
 import { GroupDetailPage } from "./pages/group-detail-page";
 import { GroupsPage } from "./pages/groups-page";
+import { GuidePage } from "./pages/guide-page";
 import { InvitePage } from "./pages/invite-page";
 import { LoginPage } from "./pages/auth-pages";
 import { NotFoundPage } from "./pages/not-found-page";
 import { SettingsPage } from "./pages/settings-page";
 import { TripDetailPage, TripsPage } from "./pages/trips-pages";
+import { TripArcadePage } from "./pages/trip-arcade-page";
 import {
   TripBoardPage,
   TripDiscoverPage,
@@ -72,9 +74,11 @@ export function App() {
           <Route path="/trips/:tripId/transport" element={<TripTransportPage />} />
           <Route path="/trips/:tripId/expenses" element={<TripExpensesPage />} />
           <Route path="/trips/:tripId/points" element={<TripPointsPage />} />
+          <Route path="/trips/:tripId/games/:gameId" element={<TripArcadePage />} />
           <Route path="/trips/:tripId/board" element={<TripBoardPage />} />
           <Route path="/trips/:tripId/lounge" element={<TripLoungePage />} />
           <Route path="/trips/:tripId/files" element={<TripFilesPage />} />
+          <Route path="/guide" element={<GuidePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/dashboard" element={<Navigate to="/app" replace />} />
         </Route>

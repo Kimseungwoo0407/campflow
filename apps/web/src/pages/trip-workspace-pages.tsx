@@ -2,6 +2,7 @@ import {
   CalendarDays,
   Car,
   Check,
+  ChevronDown,
   ChevronRight,
   ClipboardCheck,
   Coins,
@@ -219,6 +220,16 @@ const workspaceLinks = [
   { path: "files", label: "파일", icon: FileUp },
 ] as const;
 
+const arcadeDropdownLinks = [
+  { path: "points", label: "포인트 홈", emoji: "🏆" },
+  { path: "games/tap", label: "10초 탭", emoji: "👆" },
+  { path: "games/odd-even", label: "홀짝 사다리", emoji: "🪜" },
+  { path: "games/snail-race", label: "달팽이 레이스", emoji: "🐌" },
+  { path: "games/rps-roulette", label: "짱깸보 룰렛", emoji: "✊" },
+  { path: "games/lottery", label: "포인트 로또", emoji: "🎟️" },
+  { path: "games/penalty-kick", label: "승부차기", emoji: "⚽" },
+] as const;
+
 function money(value: number): string {
   return `${new Intl.NumberFormat("ko-KR").format(value)}원`;
 }
@@ -279,6 +290,7 @@ export function WorkspaceShell({
   children: ReactNode;
 }) {
   const { tripId, data: trip } = useTrip();
+  const [gameMenuOpen, setGameMenuOpen] = useState(false);
   return (
     <div className="page workspace-page">
       <nav className="workspace-breadcrumb" aria-label="여행 위치">
@@ -287,12 +299,43 @@ export function WorkspaceShell({
         <span>{eyebrow}</span>
       </nav>
       <div className="workspace-tabs" aria-label="여행 기능">
-        {workspaceLinks.map(({ path, label, icon: Icon }) => (
-          <NavLink key={path} to={`/trips/${tripId}/${path}`}>
-            <Icon size={17} />
-            {label}
-          </NavLink>
-        ))}
+        {workspaceLinks.map(({ path, label, icon: Icon }) =>
+          path === "points" ? (
+            <div
+              className={`workspace-game-menu ${gameMenuOpen ? "is-open" : ""}`}
+              key={path}
+              onMouseEnter={() => setGameMenuOpen(true)}
+              onMouseLeave={() => setGameMenuOpen(false)}
+            >
+              <button
+                type="button"
+                aria-expanded={gameMenuOpen}
+                onClick={() => setGameMenuOpen((open) => !open)}
+              >
+                <Icon size={17} />
+                게임장
+                <ChevronDown size={14} />
+              </button>
+              <div className="workspace-game-dropdown">
+                {arcadeDropdownLinks.map((game) => (
+                  <NavLink
+                    key={game.path}
+                    to={`/trips/${tripId}/${game.path}`}
+                    onClick={() => setGameMenuOpen(false)}
+                  >
+                    <span aria-hidden="true">{game.emoji}</span>
+                    {game.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <NavLink key={path} to={`/trips/${tripId}/${path}`}>
+              <Icon size={17} />
+              {label}
+            </NavLink>
+          ),
+        )}
       </div>
       <header className="page-heading page-heading--split workspace-heading">
         <div>

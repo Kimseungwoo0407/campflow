@@ -1,4 +1,14 @@
-import { Bell, CalendarRange, Home, LogOut, Menu, Settings, Users, X } from "lucide-react";
+import {
+  Bell,
+  CalendarRange,
+  CircleHelp,
+  Home,
+  LogOut,
+  Menu,
+  Settings,
+  Users,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@campflow/ui";
@@ -10,6 +20,7 @@ const navItems = [
   { to: "/app", label: "홈", icon: Home },
   { to: "/groups", label: "내 그룹", icon: Users },
   { to: "/trips", label: "내 여행", icon: CalendarRange },
+  { to: "/guide", label: "사용 가이드", icon: CircleHelp },
 ] as const;
 
 export function AppLayout({ serverOnline }: { serverOnline: boolean }) {
@@ -65,6 +76,10 @@ export function AppLayout({ serverOnline }: { serverOnline: boolean }) {
         </div>
         {menuOpen && (
           <div className="profile-menu">
+            <Link to="/guide" onClick={() => setMenuOpen(false)}>
+              <CircleHelp size={17} />
+              사용 가이드
+            </Link>
             <Link to="/settings" onClick={() => setMenuOpen(false)}>
               <Settings size={17} />
               개인 설정
