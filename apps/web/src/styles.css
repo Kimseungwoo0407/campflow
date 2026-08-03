@@ -3204,6 +3204,11 @@ textarea {
     linear-gradient(150deg, #102b42, #07141f);
 }
 
+.tap-machine.is-running {
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
 .tap-timer-ring {
   width: 175px;
   height: 175px;
@@ -3261,8 +3266,10 @@ textarea {
     0 16px 0 #083d42,
     0 24px 35px rgb(0 0 0 / 34%),
     inset 0 0 25px rgb(255 255 255 / 18%);
-  touch-action: manipulation;
+  -webkit-user-select: none;
+  touch-action: none;
   user-select: none;
+  -webkit-user-drag: none;
 }
 
 .tap-stage-button:active {
@@ -3394,6 +3401,81 @@ textarea {
   box-shadow: 0 0 18px rgb(93 224 212 / 32%);
 }
 
+.ladder-picks {
+  width: min(100%, 780px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.ladder-picks > div {
+  border: 1px solid rgb(89 128 140 / 52%);
+  border-radius: 16px;
+  display: grid;
+  gap: 0.55rem;
+  background: rgb(5 28 41 / 62%);
+  padding: 0.75rem;
+}
+
+.ladder-picks > div > span {
+  color: #a9c0c9;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.ladder-bet-summary {
+  width: min(100%, 620px);
+  border: 1px solid rgb(243 201 81 / 36%);
+  border-radius: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem 0.8rem;
+  background: rgb(243 201 81 / 9%);
+  color: #f3d77b;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.ladder-bet-summary > strong {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: #fff1ad;
+  font-size: 1.55rem;
+}
+
+.ladder-bet-summary > b {
+  color: #bfd0d5;
+  font-size: 0.7rem;
+}
+
+.ladder-bet-summary.is-invalid {
+  border-color: #d46e6e;
+  grid-template-columns: 1fr;
+  background: rgb(185 69 69 / 13%);
+  color: #ffb4b4;
+}
+
+.ladder-pattern-guide {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4rem;
+  color: #89a6af;
+  font-size: 0.68rem;
+}
+
+.ladder-pattern-guide b {
+  border: 1px solid #345e68;
+  border-radius: 999px;
+  background: #102b3b;
+  color: #c6e2e1;
+  padding: 0.25rem 0.55rem;
+}
+
 .ladder-board {
   width: min(100%, 460px);
   border: 1px solid #2c6672;
@@ -3424,24 +3506,71 @@ textarea {
   stroke-width: 6;
 }
 
+.ladder-rungs--revealed {
+  opacity: 0;
+  animation: ladder-reveal 520ms 120ms ease-out forwards;
+}
+
+.ladder-secret rect {
+  fill: #091b27;
+  stroke: #315866;
+  stroke-dasharray: 8 8;
+  stroke-width: 2;
+}
+
+.ladder-secret text {
+  fill: #78d9d1;
+  font-size: 46px;
+  font-weight: 950;
+  text-anchor: middle;
+  filter: drop-shadow(0 0 8px rgb(88 217 205 / 42%));
+}
+
+.ladder-secret .ladder-secret-label {
+  fill: #7899a4;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
 .ladder-route {
   fill: none;
   stroke: #f3c951;
-  stroke-dasharray: 16 10;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
   stroke-linecap: round;
+  stroke-linejoin: round;
   stroke-width: 6;
-  animation: ladder-flow 450ms linear infinite;
+  animation: ladder-trace 3.8s 700ms linear forwards;
   filter: drop-shadow(0 0 7px #f3c951);
 }
 
 .ladder-ball {
   fill: #ffffff;
+  opacity: 0;
+  animation: ladder-ball-show 1ms 700ms forwards;
   filter: drop-shadow(0 0 9px #64fff2);
 }
 
-@keyframes ladder-flow {
+@keyframes ladder-reveal {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+  }
   to {
-    stroke-dashoffset: -26;
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes ladder-trace {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes ladder-ball-show {
+  to {
+    opacity: 1;
   }
 }
 
@@ -3457,10 +3586,52 @@ textarea {
   color: white;
 }
 
+.ladder-labels--top span {
+  min-width: 72px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 6%);
+  padding: 0.25rem 0.55rem;
+  text-align: center;
+}
+
+.ladder-labels--top span.is-start {
+  background: rgb(88 217 205 / 18%);
+  color: #72eee4;
+  box-shadow: 0 0 18px rgb(88 217 205 / 18%);
+}
+
+.ladder-labels:not(.ladder-labels--top) span {
+  min-width: 86px;
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  text-align: center;
+}
+
+.ladder-labels span.is-result {
+  background: rgb(243 201 81 / 18%);
+  color: #ffe083;
+  box-shadow: 0 0 18px rgb(243 201 81 / 18%);
+}
+
+.tap-submit-status svg {
+  animation: none;
+}
+
 .number-reveal {
-  display: flex;
-  align-items: center;
+  width: min(100%, 500px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
+}
+
+.number-reveal > div {
+  border: 1px solid rgb(117 153 162 / 45%);
+  border-radius: 14px;
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  background: rgb(255 255 255 / 7%);
+  padding: 0.7rem;
 }
 
 .number-reveal span {
@@ -4225,6 +4396,11 @@ textarea {
     min-height: 540px;
     border-radius: 18px;
     padding: 1rem;
+  }
+
+  .ladder-picks,
+  .number-reveal {
+    grid-template-columns: 1fr;
   }
 
   .game-result-reveal {

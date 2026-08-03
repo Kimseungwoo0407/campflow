@@ -38,6 +38,22 @@ const arcadeGames = [
 type ArcadeGameId = (typeof arcadeGames)[number]["id"];
 type Direction = "LEFT" | "CENTER" | "RIGHT";
 type RpsChoice = "ROCK" | "PAPER" | "SCISSORS";
+type LadderSide = "LEFT" | "RIGHT";
+
+const LADDER_LEFT_X = 76;
+const LADDER_RIGHT_X = 224;
+
+function makeLadderPath(rungYs: number[], startSide: LadderSide): string {
+  let currentX = startSide === "LEFT" ? LADDER_LEFT_X : LADDER_RIGHT_X;
+  const segments = [`M ${currentX} 28`];
+  for (const y of rungYs) {
+    const nextX = currentX === LADDER_LEFT_X ? LADDER_RIGHT_X : LADDER_LEFT_X;
+    segments.push(`L ${currentX} ${y}`, `L ${nextX} ${y}`);
+    currentX = nextX;
+  }
+  segments.push(`L ${currentX} 332`);
+  return segments.join(" ");
+}
 
 const gameHeadings: Record<ArcadeGameId, { title: string; description: string }> = {
   tap: {
@@ -45,8 +61,9 @@ const gameHeadings: Record<ArcadeGameId, { title: string; description: string }>
     description: "10초 동안 직접 버튼을 두드려 기록을 만들고 하루 세 번 포인트를 받습니다.",
   },
   "odd-even": {
-    title: "네온 홀짝 사다리",
-    description: "홀 또는 짝을 고르면 사다리 경로가 실제로 내려간 뒤 서버 숫자를 공개합니다.",
+    title: "비공개 홀짝 사다리",
+    description:
+      "출발 좌·우, 가로줄 3·4개, 도착 홀·짝을 하나씩 또는 조합으로 고르세요. 숨겨진 사다리가 공개되면 실제 경로를 따라 내려갑니다.",
   },
   "snail-race": {
     title: "달팽이 네 마리 레이스",
@@ -83,14 +100,22 @@ function stringResult(result: Record<string, unknown>, key: string): string {
 
 function ResultBanner({ round }: { round: GameRound }) {
   const won = round.pointDelta > 0;
+  const resultLabel =
+    round.gameType === "TAP"
+      ? round.pointDelta > 0
+        ? "보상 획득"
+        : "오늘 보상 소진"
+      : round.pointDelta > 0
+        ? "승리"
+        : round.pointDelta < 0
+          ? "아쉽게 실패"
+          : "무승부";
   return (
     <div className={`game-result-reveal ${won ? "is-win" : round.pointDelta < 0 ? "is-loss" : ""}`}>
       <Sparkles aria-hidden="true" />
       <div>
         <span>{gameName(round.gameType)} 최종 결과</span>
-        <strong>
-          {round.pointDelta > 0 ? "승리" : round.pointDelta < 0 ? "아쉽게 실패" : "무승부"}
-        </strong>
+        <strong>{resultLabel}</strong>
       </div>
       <b>
         {round.pointDelta >= 0 ? "+" : ""}
@@ -106,11 +131,16 @@ export function TripArcadePage() {
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const revealTimer = useRef<number | undefined>(undefined);
+  const tapMachineRef = useRef<HTMLElement | null>(null);
+  const tapRoundIdRef = useRef("");
+  const tapSubmitLockedRef = useRef(false);
   const [wager, setWager] = useState(50);
   const [stage, setStage] = useState<"idle" | "running" | "result">("idle");
   const [animationResult, setAnimationResult] = useState<GameRound | null>(null);
   const [revealedResult, setRevealedResult] = useState<GameRound | null>(null);
-  const [oddChoice, setOddChoice] = useState<"ODD" | "EVEN">("ODD");
+  const [ladderStartChoice, setLadderStartChoice] = useState<LadderSide | null>(null);
+  const [oddChoice, setOddChoice] = useState<"ODD" | "EVEN" | null>(null);
+  const [ladderRungChoice, setLadderRungChoice] = useState<3 | 4 | null>(null);
   const [snailChoice, setSnailChoice] = useState(1);
   const [rpsChoice, setRpsChoice] = useState<RpsChoice>("ROCK");
   const [tapSeconds, setTapSeconds] = useState(10);
@@ -142,14 +172,16 @@ export function TripArcadePage() {
       path,
       body,
       duration,
+      clientRoundId,
     }: {
       path: string;
       body: Record<string, unknown>;
       duration: number;
+      clientRoundId?: string;
     }) => ({
       round: await apiRequest<GameRound>(`trips/${tripId}/games/${path}`, {
         method: "POST",
-        body: JSON.stringify({ ...body, clientRoundId: crypto.randomUUID() }),
+        body: JSON.stringify({ ...body, clientRoundId: clientRoundId ?? crypto.randomUUID() }),
       }),
       duration,
     }),
@@ -167,7 +199,10 @@ export function TripArcadePage() {
         refresh();
       }, duration);
     },
-    onError: () => setStage("idle"),
+    onError: (_error, variables) => {
+      if (variables.path === "tap-score") tapSubmitLockedRef.current = false;
+      setStage("idle");
+    },
   });
 
   const createPenalty = useMutation({
@@ -231,6 +266,17 @@ export function TripArcadePage() {
     onSuccess: refresh,
   });
 
+  const submitTapRound = () => {
+    if (tapSubmitLockedRef.current || tapScore < 1) return;
+    tapSubmitLockedRef.current = true;
+    play.mutate({
+      path: "tap-score",
+      body: { score: tapScore },
+      duration: 250,
+      clientRoundId: tapRoundIdRef.current,
+    });
+  };
+
   useEffect(
     () => () => {
       if (revealTimer.current) window.clearTimeout(revealTimer.current);
@@ -245,6 +291,7 @@ export function TripArcadePage() {
         if (seconds <= 1) {
           window.clearInterval(timer);
           setTapActive(false);
+          setStage("idle");
           return 0;
         }
         return seconds - 1;
@@ -252,6 +299,19 @@ export function TripArcadePage() {
     }, 1_000);
     return () => window.clearInterval(timer);
   }, [tapActive]);
+
+  useEffect(() => {
+    const machine = tapMachineRef.current;
+    if (!tapActive || !machine) return;
+    const preventGameScroll = (event: TouchEvent) => event.preventDefault();
+    machine.addEventListener("touchmove", preventGameScroll, { passive: false });
+    return () => machine.removeEventListener("touchmove", preventGameScroll);
+  }, [tapActive]);
+
+  useEffect(() => {
+    if (tapActive || tapSeconds !== 0 || tapScore < 1 || tapSubmitLockedRef.current) return;
+    submitTapRound();
+  }, [tapActive, tapScore, tapSeconds]);
 
   if (!selectedGame) {
     return <Navigate to={`/trips/${tripId}/points`} replace />;
@@ -292,10 +352,13 @@ export function TripArcadePage() {
     penaltyMatches.error;
 
   const startTap = () => {
+    play.reset();
     setTapScore(0);
     setTapSeconds(10);
     setRevealedResult(null);
     setAnimationResult(null);
+    tapRoundIdRef.current = crypto.randomUUID();
+    tapSubmitLockedRef.current = false;
     setStage("running");
     setTapActive(true);
   };
@@ -303,14 +366,57 @@ export function TripArcadePage() {
     setStage("idle");
     setAnimationResult(null);
     setRevealedResult(null);
+    tapSubmitLockedRef.current = false;
   };
 
-  const ladderAnswer = animationResult ? stringResult(animationResult.result, "answer") : oddChoice;
-  const ladderStartX = oddChoice === "ODD" ? 76 : 224;
-  const ladderEndX = ladderAnswer === "ODD" ? 76 : 224;
-  const ladderPath = `M ${ladderStartX} 34 C ${ladderStartX} 90, ${
-    ladderStartX === ladderEndX ? (ladderStartX === 76 ? 224 : 76) : ladderEndX
-  } 120, ${ladderEndX} 180 S ${ladderStartX} 260, ${ladderEndX} 326`;
+  const ladderRungCount = numberResult(
+    animationResult?.result ?? {},
+    "rungCount",
+    ladderRungChoice ?? 3,
+  );
+  const rawRungYs = Array.isArray(animationResult?.result.rungYs)
+    ? animationResult.result.rungYs
+    : [];
+  const ladderRungYs = rawRungYs.filter((value): value is number => typeof value === "number");
+  const fallbackRungYs = ladderRungCount === 4 ? [76, 146, 216, 286] : [102, 182, 262];
+  const visibleRungYs = ladderRungYs.length > 0 ? ladderRungYs : fallbackRungYs;
+  const ladderStartSide = (stringResult(animationResult?.result ?? {}, "startSide") ||
+    "LEFT") as LadderSide;
+  const ladderPath = makeLadderPath(visibleRungYs, ladderStartSide);
+  const ladderRungsPath = visibleRungYs
+    .map((y) => `M ${LADDER_LEFT_X} ${y} H ${LADDER_RIGHT_X}`)
+    .join(" ");
+  const ladderSelectedCount = [ladderStartChoice, ladderRungChoice, oddChoice].filter(
+    (choice) => choice !== null,
+  ).length;
+  const expectedEndChoice =
+    ladderStartChoice && ladderRungChoice
+      ? (ladderRungChoice % 2 === 0
+          ? ladderStartChoice
+          : ladderStartChoice === "LEFT"
+            ? "RIGHT"
+            : "LEFT") === "LEFT"
+        ? "ODD"
+        : "EVEN"
+      : null;
+  const ladderCombinationValid = !(
+    ladderSelectedCount === 3 &&
+    expectedEndChoice &&
+    oddChoice !== expectedEndChoice
+  );
+  const ladderPayoutMultiplier = [0, 1.9, 3.6, 3.8][ladderSelectedCount] ?? 0;
+  const ladderWinProbability = ladderSelectedCount === 1 ? "50%" : "25%";
+  const ladderSelectionLabel = [
+    ladderStartChoice === "LEFT" ? "좌" : ladderStartChoice === "RIGHT" ? "우" : "",
+    ladderRungChoice ? `${ladderRungChoice}줄` : "",
+    oddChoice === "ODD" ? "홀" : oddChoice === "EVEN" ? "짝" : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const ladderAnswer = stringResult(animationResult?.result ?? {}, "answer");
+  const ladderActualPattern = animationResult
+    ? `${ladderStartSide === "LEFT" ? "좌" : "우"}${ladderRungCount}${ladderAnswer === "ODD" ? "홀" : "짝"}`
+    : "";
 
   const snailProgress = Array.isArray(animationResult?.result.progress)
     ? animationResult.result.progress
@@ -379,7 +485,10 @@ export function TripArcadePage() {
         )}
 
       {selectedGame.id === "tap" && (
-        <section className={`arcade-machine tap-machine ${tapActive ? "is-running" : ""}`}>
+        <section
+          ref={tapMachineRef}
+          className={`arcade-machine tap-machine ${tapActive ? "is-running" : ""}`}
+        >
           <div className="tap-timer-ring" style={{ "--tap-progress": tapSeconds } as CSSProperties}>
             <strong>{tapSeconds}</strong>
             <span>SECONDS</span>
@@ -387,7 +496,10 @@ export function TripArcadePage() {
           <div className="tap-live-score">
             <span>현재 기록</span>
             <strong>{tapScore}</strong>
-            <small>하루 3회 보상 · 최고 300회</small>
+            <small>
+              오늘 보상 {data.tapRewardStatus.rewardedToday}/3회 · 남은{" "}
+              {data.tapRewardStatus.remainingToday}회
+            </small>
           </div>
           {!tapActive && tapSeconds === 10 && (
             <Button onClick={startTap}>
@@ -398,26 +510,33 @@ export function TripArcadePage() {
             <button
               className="tap-stage-button"
               type="button"
-              onClick={() => setTapScore((score) => Math.min(300, score + 1))}
+              aria-label="탭 횟수 올리기"
+              onPointerDown={(event) => {
+                if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0))
+                  return;
+                event.preventDefault();
+                setTapScore((score) => Math.min(300, score + 1));
+              }}
+              onClick={(event) => {
+                if (event.detail === 0) setTapScore((score) => Math.min(300, score + 1));
+              }}
             >
               TAP!
               <i aria-hidden="true" />
             </button>
           )}
-          {!tapActive && tapSeconds === 0 && !revealedResult && (
-            <Button
-              disabled={tapScore < 1 || play.isPending}
-              onClick={() =>
-                play.mutate({
-                  path: "tap-score",
-                  body: { score: tapScore },
-                  duration: 1_400,
-                })
-              }
-            >
-              <Trophy size={18} /> {tapScore}회 기록 등록
-            </Button>
-          )}
+          {!tapActive &&
+            tapSeconds === 0 &&
+            !revealedResult &&
+            (play.isError ? (
+              <Button disabled={play.isPending} onClick={submitTapRound}>
+                <Trophy size={18} /> {tapScore}회 기록 저장 다시 시도
+              </Button>
+            ) : (
+              <p className="machine-status tap-submit-status">
+                <Trophy size={18} /> {tapScore}회 기록을 자동 저장하는 중…
+              </p>
+            ))}
           {revealedResult && (
             <>
               <ResultBanner round={revealedResult} />
@@ -438,74 +557,187 @@ export function TripArcadePage() {
 
       {selectedGame.id === "odd-even" && (
         <section className="arcade-machine ladder-machine">
-          <div className="machine-choice-row">
-            <button
-              className={oddChoice === "ODD" ? "active" : ""}
-              type="button"
-              onClick={() => setOddChoice("ODD")}
-              disabled={busy}
-            >
-              홀 ODD
-            </button>
-            <button
-              className={oddChoice === "EVEN" ? "active" : ""}
-              type="button"
-              onClick={() => setOddChoice("EVEN")}
-              disabled={busy}
-            >
-              짝 EVEN
-            </button>
+          <div className="ladder-picks">
+            <div>
+              <span>출발점</span>
+              <div className="machine-choice-row">
+                <button
+                  className={ladderStartChoice === "LEFT" ? "active" : ""}
+                  type="button"
+                  aria-pressed={ladderStartChoice === "LEFT"}
+                  onClick={() =>
+                    setLadderStartChoice((choice) => (choice === "LEFT" ? null : "LEFT"))
+                  }
+                  disabled={busy}
+                >
+                  좌 LEFT
+                </button>
+                <button
+                  className={ladderStartChoice === "RIGHT" ? "active" : ""}
+                  type="button"
+                  aria-pressed={ladderStartChoice === "RIGHT"}
+                  onClick={() =>
+                    setLadderStartChoice((choice) => (choice === "RIGHT" ? null : "RIGHT"))
+                  }
+                  disabled={busy}
+                >
+                  우 RIGHT
+                </button>
+              </div>
+            </div>
+            <div>
+              <span>가로줄 수</span>
+              <div className="machine-choice-row">
+                {([3, 4] as const).map((count) => (
+                  <button
+                    className={ladderRungChoice === count ? "active" : ""}
+                    type="button"
+                    key={count}
+                    aria-pressed={ladderRungChoice === count}
+                    onClick={() =>
+                      setLadderRungChoice((choice) => (choice === count ? null : count))
+                    }
+                    disabled={busy}
+                  >
+                    {count}줄
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <span>도착 결과</span>
+              <div className="machine-choice-row">
+                <button
+                  className={oddChoice === "ODD" ? "active" : ""}
+                  type="button"
+                  aria-pressed={oddChoice === "ODD"}
+                  onClick={() => setOddChoice((choice) => (choice === "ODD" ? null : "ODD"))}
+                  disabled={busy}
+                >
+                  홀 ODD
+                </button>
+                <button
+                  className={oddChoice === "EVEN" ? "active" : ""}
+                  type="button"
+                  aria-pressed={oddChoice === "EVEN"}
+                  onClick={() => setOddChoice((choice) => (choice === "EVEN" ? null : "EVEN"))}
+                  disabled={busy}
+                >
+                  짝 EVEN
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className={`ladder-bet-summary ${!ladderCombinationValid ? "is-invalid" : ""}`}>
+            {ladderSelectedCount === 0 ? (
+              <span>원하는 항목을 하나 이상 선택하세요.</span>
+            ) : ladderCombinationValid ? (
+              <>
+                <span>내 선택 · {ladderSelectionLabel}</span>
+                <strong>×{ladderPayoutMultiplier.toFixed(1)}</strong>
+                <b>
+                  적중 확률 {ladderWinProbability} · 순이익{" "}
+                  {point(Math.floor(wager * ladderPayoutMultiplier))} + 판돈 반환
+                </b>
+              </>
+            ) : (
+              <span>이 조합은 실제 사다리로 이어지지 않습니다. 홀·짝 선택을 바꿔 주세요.</span>
+            )}
+          </div>
+          <div className="ladder-pattern-guide" aria-label="가능한 전체 사다리 패턴">
+            <span>가능 패턴</span>
+            {[
+              ["좌4홀", "왼쪽 출발 · 4줄 · 홀 도착"],
+              ["우3홀", "오른쪽 출발 · 3줄 · 홀 도착"],
+              ["좌3짝", "왼쪽 출발 · 3줄 · 짝 도착"],
+              ["우4짝", "오른쪽 출발 · 4줄 · 짝 도착"],
+            ].map(([pattern, label]) => (
+              <b key={pattern} title={label}>
+                {pattern}
+              </b>
+            ))}
           </div>
           <div className={`ladder-board ${busy ? "is-running" : ""}`}>
             <div className="ladder-labels ladder-labels--top">
-              <span>홀</span>
-              <span>짝</span>
+              <span className={animationResult && ladderStartSide === "LEFT" ? "is-start" : ""}>
+                좌 LEFT {animationResult && ladderStartSide === "LEFT" ? "●" : ""}
+              </span>
+              <span className={animationResult && ladderStartSide === "RIGHT" ? "is-start" : ""}>
+                우 RIGHT {animationResult && ladderStartSide === "RIGHT" ? "●" : ""}
+              </span>
             </div>
             <svg viewBox="0 0 300 360" role="img" aria-label="홀짝 사다리 진행 화면">
               <path d="M76 28 V332 M224 28 V332" className="ladder-rail" />
-              <path
-                d="M76 72 H224 M76 128 H224 M76 190 H224 M76 250 H224 M76 300 H224"
-                className="ladder-rungs"
-              />
+              {!animationResult && (
+                <g className="ladder-secret" aria-hidden="true">
+                  <rect x="89" y="48" width="122" height="264" rx="18" />
+                  <text x="150" y="174">
+                    ?
+                  </text>
+                  <text x="150" y="205" className="ladder-secret-label">
+                    가로줄 비공개
+                  </text>
+                </g>
+              )}
               {animationResult && (
-                <>
-                  <path d={ladderPath} className="ladder-route" />
+                <g key={animationResult.id}>
+                  <path d={ladderRungsPath} className="ladder-rungs ladder-rungs--revealed" />
+                  <path d={ladderPath} className="ladder-route" pathLength="1" />
                   <circle key={animationResult.id} r="10" className="ladder-ball">
-                    <animateMotion dur="3.6s" fill="freeze" path={ladderPath} />
+                    <animateMotion begin="0.7s" dur="3.8s" fill="freeze" path={ladderPath} />
                   </circle>
-                </>
+                </g>
               )}
             </svg>
             <div className="ladder-labels">
-              <span>홀 결과</span>
-              <span>짝 결과</span>
+              <span className={animationResult && ladderAnswer === "ODD" ? "is-result" : ""}>
+                홀 ODD {animationResult && ladderAnswer === "ODD" ? "●" : ""}
+              </span>
+              <span className={animationResult && ladderAnswer === "EVEN" ? "is-result" : ""}>
+                짝 EVEN {animationResult && ladderAnswer === "EVEN" ? "●" : ""}
+              </span>
             </div>
           </div>
           {stage === "idle" && (
             <Button
-              disabled={!canWager}
+              disabled={!canWager || ladderSelectedCount === 0 || !ladderCombinationValid}
               onClick={() =>
                 play.mutate({
                   path: "odd-even",
-                  body: { choice: oddChoice, wager },
-                  duration: 4_000,
+                  body: {
+                    ...(ladderStartChoice ? { startChoice: ladderStartChoice } : {}),
+                    ...(ladderRungChoice ? { rungCountChoice: ladderRungChoice } : {}),
+                    ...(oddChoice ? { endChoice: oddChoice } : {}),
+                    wager,
+                  },
+                  duration: 4_900,
                 })
               }
             >
-              <Dices size={18} /> {point(wager)} 걸고 사다리 시작
+              <Dices size={18} /> {point(wager)} · {ladderSelectionLabel || "선택 필요"} 배팅
             </Button>
           )}
           {busy && (
             <p className="machine-status">
-              <RotateCw size={17} /> 사다리를 따라 결과 확인 중…
+              <RotateCw size={17} />
+              {animationResult ? " 숨은 사다리를 따라 내려가는 중…" : " 사다리를 비공개로 섞는 중…"}
             </p>
           )}
           {revealedResult && (
             <>
               <div className="number-reveal">
-                <span>서버 추첨 숫자</span>
-                <strong>{numberResult(revealedResult.result, "rolled")}</strong>
-                <b>{stringResult(revealedResult.result, "answer") === "ODD" ? "홀" : "짝"}</b>
+                <div>
+                  <span>최종 사다리 패턴</span>
+                  <strong>{ladderActualPattern}</strong>
+                  <b>실제 경로 일치</b>
+                </div>
+                <div>
+                  <span>내 선택</span>
+                  <strong>{ladderSelectionLabel}</strong>
+                  <b>
+                    순이익 ×{numberResult(revealedResult.result, "payoutMultiplier").toFixed(1)}
+                  </b>
+                </div>
               </div>
               <ResultBanner round={revealedResult} />
               <Button variant="secondary" onClick={resetRound}>

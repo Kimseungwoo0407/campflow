@@ -196,20 +196,44 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       .send({ optionIds: [poll.options[0]!.id] })
       .expect(201);
 
+    const tapRoundId = randomUUID();
     const tapResult = await request(app.getHttpServer())
       .post(`/v1/trips/${trip.id}/games/tap-score`)
       .set("authorization", `Bearer ${owner.accessToken}`)
-      .send({ score: 40, clientRoundId: randomUUID() })
+      .send({ score: 40, clientRoundId: tapRoundId })
       .expect(201);
     expect(tapResult.body).toMatchObject({
       data: { gameType: "TAP", score: 40, pointDelta: 15 },
     });
 
-    await request(app.getHttpServer())
+    const duplicateTapResult = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/games/tap-score`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({ score: 40, clientRoundId: tapRoundId })
+      .expect(201);
+    expect(duplicateTapResult.body.data.id).toBe(tapResult.body.data.id);
+
+    const ladderResult = await request(app.getHttpServer())
       .post(`/v1/trips/${trip.id}/games/odd-even`)
       .set("authorization", `Bearer ${owner.accessToken}`)
-      .send({ choice: "ODD", wager: 5, clientRoundId: randomUUID() })
+      .send({
+        startChoice: "LEFT",
+        rungCountChoice: 3,
+        wager: 5,
+        clientRoundId: randomUUID(),
+      })
       .expect(201);
+    expect(ladderResult.body.data.result).toMatchObject({
+      startChoice: "LEFT",
+      rungCountChoice: 3,
+      selectedCount: 2,
+      payoutMultiplier: 3.6,
+    });
+    expect([3, 4]).toContain(ladderResult.body.data.result.rungCount);
+    expect(ladderResult.body.data.result.rungYs).toHaveLength(
+      ladderResult.body.data.result.rungCount,
+    );
+    expect(["LEFT", "RIGHT"]).toContain(ladderResult.body.data.result.startSide);
 
     const penaltyResponse = await request(app.getHttpServer())
       .post(`/v1/trips/${trip.id}/games/penalty-matches`)

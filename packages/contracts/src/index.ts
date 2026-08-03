@@ -345,11 +345,40 @@ export const redeemRewardSchema = z
 
 export const oddEvenGameSchema = z
   .object({
-    choice: z.enum(["ODD", "EVEN"]),
+    startChoice: z.enum(["LEFT", "RIGHT"]).optional(),
+    rungCountChoice: z.union([z.literal(3), z.literal(4)]).optional(),
+    endChoice: z.enum(["ODD", "EVEN"]).optional(),
     wager: z.number().int().min(5).max(500),
     clientRoundId: z.string().trim().min(8).max(80),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    const selectedCount = [value.startChoice, value.rungCountChoice, value.endChoice].filter(
+      (choice) => choice !== undefined,
+    ).length;
+    if (selectedCount === 0) {
+      context.addIssue({
+        code: "custom",
+        message: "출발점, 줄 수, 도착 결과 중 하나 이상을 선택해야 합니다.",
+      });
+      return;
+    }
+    if (selectedCount === 3 && value.startChoice && value.rungCountChoice && value.endChoice) {
+      const endSide =
+        value.rungCountChoice % 2 === 0
+          ? value.startChoice
+          : value.startChoice === "LEFT"
+            ? "RIGHT"
+            : "LEFT";
+      const expectedEnd = endSide === "LEFT" ? "ODD" : "EVEN";
+      if (value.endChoice !== expectedEnd) {
+        context.addIssue({
+          code: "custom",
+          message: "실제 사다리로 이어질 수 없는 조합입니다.",
+        });
+      }
+    }
+  });
 
 export const snailRaceGameSchema = z
   .object({

@@ -95,6 +95,16 @@ const rpsMultipliers = [
   { multiplier: 100, weight: 10, probability: "0.001%" },
 ] as const;
 
+const ladderPayouts = [
+  { selectionCount: 1, probability: "50%", multiplier: 1.9 },
+  { selectionCount: 2, probability: "25%", multiplier: 3.6 },
+  { selectionCount: 3, probability: "25%", multiplier: 3.8 },
+] as const;
+
+export function payoutWithProfitMultiplier(wager: number, multiplier: number): number {
+  return wager + Math.floor(wager * multiplier);
+}
+
 @Injectable()
 export class PointsService {
   constructor(
@@ -105,38 +115,49 @@ export class PointsService {
   async dashboard(userId: string, tripId: string) {
     await this.access.requireMembership(userId, tripId);
     await Promise.all([this.ensureWallets(tripId), this.ensureRewards(tripId)]);
-    const [wallets, recentEntries, rewards, recentRedemptions, recentGames] = await Promise.all([
-      this.prisma.pointWallet.findMany({
-        where: { tripId },
-        include: { user: { select: { id: true, nickname: true } } },
-      }),
-      this.prisma.pointLedger.findMany({
-        where: { tripId },
-        include: { user: { select: { id: true, nickname: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 30,
-      }),
-      this.prisma.rewardItem.findMany({
-        where: { tripId, active: true },
-        orderBy: [{ sortOrder: "asc" }, { cost: "asc" }],
-      }),
-      this.prisma.rewardRedemption.findMany({
-        where: { tripId },
-        include: {
-          rewardItem: true,
-          buyer: { select: { id: true, nickname: true } },
-          target: { select: { id: true, nickname: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 30,
-      }),
-      this.prisma.gameRound.findMany({
-        where: { tripId },
-        include: { user: { select: { id: true, nickname: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 30,
-      }),
-    ]);
+    const { start: todayStart, end: todayEnd } = this.kstDayRange();
+    const [wallets, recentEntries, rewards, recentRedemptions, recentGames, tapRewardedToday] =
+      await Promise.all([
+        this.prisma.pointWallet.findMany({
+          where: { tripId },
+          include: { user: { select: { id: true, nickname: true } } },
+        }),
+        this.prisma.pointLedger.findMany({
+          where: { tripId },
+          include: { user: { select: { id: true, nickname: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 30,
+        }),
+        this.prisma.rewardItem.findMany({
+          where: { tripId, active: true },
+          orderBy: [{ sortOrder: "asc" }, { cost: "asc" }],
+        }),
+        this.prisma.rewardRedemption.findMany({
+          where: { tripId },
+          include: {
+            rewardItem: true,
+            buyer: { select: { id: true, nickname: true } },
+            target: { select: { id: true, nickname: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 30,
+        }),
+        this.prisma.gameRound.findMany({
+          where: { tripId },
+          include: { user: { select: { id: true, nickname: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 30,
+        }),
+        this.prisma.gameRound.count({
+          where: {
+            tripId,
+            userId,
+            gameType: "TAP",
+            pointDelta: { gt: 0 },
+            createdAt: { gte: todayStart, lt: todayEnd },
+          },
+        }),
+      ]);
     const byBalance = [...wallets].sort(
       (left, right) => right.balance - left.balance || right.earnedTotal - left.earnedTotal,
     );
@@ -151,6 +172,10 @@ export class PointsService {
       rewards,
       recentRedemptions,
       recentGames,
+      tapRewardStatus: {
+        rewardedToday: Math.min(tapRewardedToday, 3),
+        remainingToday: Math.max(0, 3 - tapRewardedToday),
+      },
       rules: this.rules(),
     };
   }
@@ -161,12 +186,17 @@ export class PointsService {
       activityRules,
       games: {
         tap: { rewardedPlaysPerDay: 3, maximumScore: 300, maximumReward: 60 },
-        oddEven: { winProbability: "50%", payout: "원금 포함 2배" },
+        oddEven: {
+          patterns: ["좌4홀", "우3홀", "좌3짝", "우4짝"],
+          payouts: ladderPayouts,
+          payoutBasis: "배수만큼 순이익 지급 후 판돈 별도 반환",
+          selections: "출발 좌·우, 가로줄 3·4개, 도착 홀·짝을 단일 또는 조합으로 선택",
+        },
         snailRace: { winProbability: "25%", payout: "원금 포함 4배", snails: 4 },
         rpsRoulette: {
           draw: "원금 반환",
           loss: "0배",
-          win: "배수 룰렛 실행",
+          win: "배수만큼 순이익 지급 후 판돈 별도 반환",
           multipliers: rpsMultipliers,
         },
         lottery: { pricePerDraw: 30, tiers: lotteryTiers },
@@ -352,17 +382,41 @@ export class PointsService {
     await this.access.requireMembership(userId, tripId);
     const existing = await this.existingRound(tripId, userId, input.clientRoundId);
     if (existing) return existing;
-    const rolled = randomInt(1, 101);
-    const answer = rolled % 2 === 0 ? "EVEN" : "ODD";
-    const won = input.choice === answer;
+    const startSide = randomInt(0, 2) === 0 ? "LEFT" : "RIGHT";
+    const rungCount = randomInt(0, 2) === 0 ? 3 : 4;
+    const rungBases = rungCount === 3 ? [102, 182, 262] : [76, 146, 216, 286];
+    const rungYs = rungBases.map((base) => base + randomInt(-9, 10));
+    const endSide = rungCount % 2 === 0 ? startSide : startSide === "LEFT" ? "RIGHT" : "LEFT";
+    const answer = endSide === "LEFT" ? "ODD" : "EVEN";
+    const selectedCount = [input.startChoice, input.rungCountChoice, input.endChoice].filter(
+      (choice) => choice !== undefined,
+    ).length;
+    const payoutRule = ladderPayouts.find((rule) => rule.selectionCount === selectedCount)!;
+    const won =
+      (input.startChoice === undefined || input.startChoice === startSide) &&
+      (input.rungCountChoice === undefined || input.rungCountChoice === rungCount) &&
+      (input.endChoice === undefined || input.endChoice === answer);
+    const payout = won ? payoutWithProfitMultiplier(input.wager, payoutRule.multiplier) : 0;
     return this.finishWagerRound(
       userId,
       tripId,
       "ODD_EVEN",
       input.wager,
-      won ? input.wager * 2 : 0,
+      payout,
       input.clientRoundId,
-      { choice: input.choice, rolled, answer, won },
+      {
+        ...(input.startChoice ? { startChoice: input.startChoice } : {}),
+        ...(input.rungCountChoice ? { rungCountChoice: input.rungCountChoice } : {}),
+        ...(input.endChoice ? { endChoice: input.endChoice } : {}),
+        selectedCount,
+        payoutMultiplier: payoutRule.multiplier,
+        answer,
+        rungCount,
+        rungYs,
+        startSide,
+        endSide,
+        won,
+      },
     );
   }
 
@@ -399,12 +453,17 @@ export class PointsService {
       (input.choice === "PAPER" && machine === "ROCK") ||
       (input.choice === "SCISSORS" && machine === "PAPER");
     const multiplier = won ? this.weighted(rpsMultipliers, 1_000_000).multiplier : draw ? 1 : 0;
+    const payout = won
+      ? payoutWithProfitMultiplier(input.wager, multiplier)
+      : draw
+        ? input.wager
+        : 0;
     return this.finishWagerRound(
       userId,
       tripId,
       "RPS_ROULETTE",
       input.wager,
-      input.wager * multiplier,
+      payout,
       input.clientRoundId,
       {
         choice: input.choice,
@@ -447,37 +506,46 @@ export class PointsService {
       },
     });
     const reward = rewardedToday >= 3 ? 0 : Math.min(60, 5 + Math.floor(input.score / 4));
-    return this.prisma.$transaction(async (transaction) => {
-      if (reward > 0) {
-        await this.changeBalance(
-          transaction,
-          tripId,
-          userId,
-          reward,
-          "WIN",
-          "10초 탭 게임 보상",
-          `game:${input.clientRoundId}:payout`,
-          { score: input.score },
-        );
-      }
-      return transaction.gameRound.create({
-        data: {
-          id: newId(),
-          tripId,
-          userId,
-          gameType: "TAP",
-          clientRoundId: input.clientRoundId,
-          score: input.score,
-          pointDelta: reward,
-          result: {
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        if (reward > 0) {
+          await this.changeBalance(
+            transaction,
+            tripId,
+            userId,
+            reward,
+            "WIN",
+            "10초 탭 게임 보상",
+            `game:${input.clientRoundId}:payout`,
+            { score: input.score },
+          );
+        }
+        return transaction.gameRound.create({
+          data: {
+            id: newId(),
+            tripId,
+            userId,
+            gameType: "TAP",
+            clientRoundId: input.clientRoundId,
             score: input.score,
-            rewarded: reward > 0,
-            rewardedPlay: Math.min(rewardedToday + 1, 3),
+            pointDelta: reward,
+            result: {
+              score: input.score,
+              rewarded: reward > 0,
+              rewardedPlay: reward > 0 ? Math.min(rewardedToday + 1, 3) : rewardedToday,
+              rewardLimit: 3,
+            },
           },
-        },
-        include: { user: { select: { id: true, nickname: true } } },
+          include: { user: { select: { id: true, nickname: true } } },
+        });
       });
-    });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const duplicate = await this.existingRound(tripId, userId, input.clientRoundId);
+        if (duplicate) return duplicate;
+      }
+      throw error;
+    }
   }
 
   async penaltyMatches(userId: string, tripId: string) {

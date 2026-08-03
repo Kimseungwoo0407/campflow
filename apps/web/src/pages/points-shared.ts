@@ -84,6 +84,10 @@ export interface PointsDashboard {
   rewards: RewardItem[];
   recentRedemptions: RewardRedemption[];
   recentGames: GameRound[];
+  tapRewardStatus: {
+    rewardedToday: number;
+    remainingToday: number;
+  };
   rules: PointsRules;
 }
 
@@ -137,6 +141,10 @@ export function gameName(value: string): string {
 export function describeResult(round: GameRound): string {
   const result = round.result;
   if (round.gameType === "ODD_EVEN") {
+    if (typeof result.startSide === "string" && typeof result.rungCount === "number") {
+      const pattern = `${result.startSide === "LEFT" ? "좌" : "우"}${result.rungCount}${result.answer === "ODD" ? "홀" : "짝"}`;
+      return `${result.won ? "적중" : "실패"} · ${pattern}`;
+    }
     return `${result.won ? "적중" : "실패"} · 나온 수 ${String(result.rolled)}`;
   }
   if (round.gameType === "SNAIL_RACE") {
@@ -153,6 +161,10 @@ export function describeResult(round: GameRound): string {
       )
       .join(", ");
   }
-  if (round.gameType === "TAP") return `${round.score ?? 0}회`;
+  if (round.gameType === "TAP") {
+    const rewardedPlay = Number(result.rewardedPlay);
+    if (result.rewarded === false) return `${round.score ?? 0}회 · 오늘 보상 소진`;
+    return `${round.score ?? 0}회${Number.isFinite(rewardedPlay) ? ` · 보상 ${rewardedPlay}/3회` : ""}`;
+  }
   return result.goal === true ? "골" : result.goal === false ? "선방" : "결과 확정";
 }

@@ -35,8 +35,8 @@ const arcadeGames = [
   {
     id: "odd-even",
     emoji: "🪜",
-    title: "홀짝 사다리",
-    description: "네온 사다리를 따라 결과가 내려오는 홀짝",
+    title: "비공개 사다리",
+    description: "좌·우, 3·4줄, 홀·짝을 단일 또는 조합으로 맞히는 실제 경로 게임",
   },
   {
     id: "snail-race",

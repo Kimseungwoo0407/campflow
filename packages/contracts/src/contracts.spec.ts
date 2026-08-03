@@ -3,6 +3,7 @@ import {
   createInviteSchema,
   createManualCandidateSchema,
   loginSchema,
+  oddEvenGameSchema,
   signUpSchema,
 } from "./index";
 
@@ -49,5 +50,43 @@ describe("공유 입력 계약", () => {
       distance: "서울에서 차로 1시간 20분",
       price: "4인 32만원",
     });
+  });
+
+  it("사다리 게임은 출발·줄 수·도착 중 하나 이상을 선택한다", () => {
+    expect(
+      oddEvenGameSchema.parse({
+        startChoice: "LEFT",
+        rungCountChoice: 3,
+        wager: 50,
+        clientRoundId: "ladder-round-1",
+      }),
+    ).toMatchObject({ startChoice: "LEFT", rungCountChoice: 3 });
+
+    expect(
+      oddEvenGameSchema.safeParse({
+        wager: 50,
+        clientRoundId: "ladder-round-2",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      oddEvenGameSchema.safeParse({
+        startChoice: "LEFT",
+        rungCountChoice: 3,
+        endChoice: "ODD",
+        wager: 50,
+        clientRoundId: "ladder-round-3",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      oddEvenGameSchema.safeParse({
+        startChoice: "LEFT",
+        rungCountChoice: 3,
+        endChoice: "EVEN",
+        wager: 50,
+        clientRoundId: "ladder-round-4",
+      }).success,
+    ).toBe(true);
   });
 });
