@@ -2787,6 +2787,215 @@ textarea {
   font-size: 0.82rem;
 }
 
+.points-tabs {
+  width: fit-content;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  display: flex;
+  gap: 0.3rem;
+  background: rgb(255 255 255 / 72%);
+  padding: 0.3rem;
+  margin-bottom: 0.8rem;
+}
+
+.points-tabs a {
+  min-height: 40px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.8rem;
+  color: var(--ink-muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.points-tabs a.active {
+  background: var(--navy);
+  color: white;
+}
+
+.manager-point-grant-card {
+  margin: 1rem 0;
+  border-color: #d7b64f;
+  background: linear-gradient(145deg, #fffdf6, #fff6d9);
+}
+
+.manager-point-grant-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.manager-point-grant-copy > svg {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  flex: 0 0 auto;
+  background: #f7d978;
+  color: #684e00;
+  padding: 0.55rem;
+}
+
+.manager-point-grant-copy h2,
+.manager-point-grant-copy p {
+  margin-bottom: 0.35rem;
+}
+
+.manager-point-grant-copy p {
+  color: #6d5b22;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.manager-point-grant-form {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.8fr) minmax(120px, 0.55fr) minmax(210px, 1.4fr) auto;
+  align-items: end;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.manager-point-grant-form label {
+  display: grid;
+  gap: 0.35rem;
+  color: #4c5260;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.manager-point-grant-card .form-notice {
+  margin: 0.8rem 0 0;
+}
+
+.point-ledger-section h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.point-ledger-card {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+.achievement-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.7rem;
+  margin: 1rem 0;
+}
+
+.achievement-summary .card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.2rem 0.65rem;
+}
+
+.achievement-summary svg {
+  grid-row: 1 / 3;
+  color: var(--teal);
+}
+
+.achievement-summary span {
+  color: var(--ink-muted);
+  font-size: 0.76rem;
+}
+
+.achievement-summary strong {
+  font-size: 1.25rem;
+}
+
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 0.8rem;
+}
+
+.achievement-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 0.75rem;
+  overflow: hidden;
+}
+
+.achievement-card.is-claimable {
+  border-color: #d3ab35;
+  box-shadow: 0 9px 26px rgb(211 171 53 / 14%);
+}
+
+.achievement-card.is-claimed {
+  background: #f2f7f5;
+}
+
+.achievement-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--sand);
+  font-size: 1.55rem;
+}
+
+.achievement-copy h2 {
+  margin: 0.35rem 0 0.25rem;
+  font-size: 1rem;
+}
+
+.achievement-copy p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.achievement-reward {
+  color: var(--teal);
+  white-space: nowrap;
+}
+
+.achievement-progress {
+  height: 8px;
+  border-radius: 999px;
+  grid-column: 1 / -1;
+  overflow: hidden;
+  background: #e2e7e5;
+}
+
+.achievement-progress i {
+  height: 100%;
+  border-radius: inherit;
+  display: block;
+  background: linear-gradient(90deg, var(--teal), #efbb3d);
+}
+
+.achievement-card > small {
+  grid-column: 1 / -1;
+  color: var(--ink-muted);
+}
+
+.achievement-card > .button {
+  grid-column: 1 / -1;
+}
+
+.settings-security-card {
+  margin-top: 1rem;
+}
+
+.settings-card-heading h2 {
+  margin: 0.35rem 0;
+}
+
+.settings-card-heading p {
+  color: var(--ink-muted);
+  font-size: 0.88rem;
+}
+
 .points-hero-grid,
 .leaderboard-layout,
 .history-layout {
@@ -4344,6 +4553,15 @@ textarea {
   .penalty-create .button {
     grid-column: 1 / -1;
   }
+
+  .manager-point-grant-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .manager-point-grant-form label:last-of-type,
+  .manager-point-grant-form .button {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 620px) {
@@ -4358,6 +4576,24 @@ textarea {
   .section-heading-row .target-select,
   .wager-field {
     width: 100%;
+  }
+
+  .points-tabs,
+  .manager-point-grant-card,
+  .achievement-summary,
+  .achievement-grid {
+    margin-right: 0.65rem;
+    margin-left: 0.65rem;
+  }
+
+  .achievement-summary,
+  .manager-point-grant-form {
+    grid-template-columns: 1fr;
+  }
+
+  .manager-point-grant-form label:last-of-type,
+  .manager-point-grant-form .button {
+    grid-column: auto;
   }
 
   .workspace-game-dropdown {

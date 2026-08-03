@@ -1,20 +1,12 @@
-import {
-  ConflictException,
-  Injectable,
-  UnauthorizedException,
-} from "@nestjs/common";
+import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService, type JwtSignOptions } from "@nestjs/jwt";
 import type { Prisma, Session, User } from "@prisma/client";
 import argon2 from "argon2";
-import {
-  createHmac,
-  randomBytes,
-  randomUUID,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type {
   AuthResult,
+  ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
   ResetPasswordInput,
@@ -82,11 +74,7 @@ export class AuthService {
       throw error;
     }
 
-    const verificationToken = await this.createAuthToken(
-      user.id,
-      "EMAIL_VERIFICATION",
-      24 * 60,
-    );
+    const verificationToken = await this.createAuthToken(user.id, "EMAIL_VERIFICATION", 24 * 60);
     const emailDelivery = await this.mail.sendVerification(user.email, verificationToken);
     const result = await this.createSession(user, metadata);
     await this.audit.record({
@@ -102,7 +90,10 @@ export class AuthService {
     };
   }
 
-  async login(input: LoginInput, metadata: ClientMetadata): Promise<AuthResult & { refreshToken: string }> {
+  async login(
+    input: LoginInput,
+    metadata: ClientMetadata,
+  ): Promise<AuthResult & { refreshToken: string }> {
     const identifier = input.identifier.trim();
     const normalizedIdentifier = identifier.normalize("NFKC").toLocaleLowerCase("ko-KR");
     const user = identifier.includes("@")
@@ -110,7 +101,9 @@ export class AuthService {
       : await this.prisma.user.findFirst({
           where: { username: normalizedIdentifier },
         });
-    const verified = user ? await argon2.verify(user.passwordHash, input.password).catch(() => false) : false;
+    const verified = user
+      ? await argon2.verify(user.passwordHash, input.password).catch(() => false)
+      : false;
 
     if (!user || !verified || user.status !== "ACTIVE") {
       await this.audit.record({
@@ -136,9 +129,7 @@ export class AuthService {
     return result;
   }
 
-  async refresh(
-    refreshToken: string,
-  ): Promise<AuthResult & { refreshToken: string }> {
+  async refresh(refreshToken: string): Promise<AuthResult & { refreshToken: string }> {
     const payload = await this.verifyRefreshToken(refreshToken);
     const session = await this.prisma.session.findUnique({
       where: { id: payload.sid },
@@ -267,9 +258,7 @@ export class AuthService {
     return { verified: true };
   }
 
-  async forgotPassword(
-    input: ForgotPasswordInput,
-  ): Promise<{
+  async forgotPassword(input: ForgotPasswordInput): Promise<{
     accepted: true;
     delivery: "smtp" | "preview" | "failed" | "not_applicable" | "accepted";
     developmentResetToken?: string;
@@ -282,9 +271,7 @@ export class AuthService {
       return {
         accepted: true,
         delivery:
-          this.config.get<string>("NODE_ENV") === "production"
-            ? "accepted"
-            : "not_applicable",
+          this.config.get<string>("NODE_ENV") === "production" ? "accepted" : "not_applicable",
       };
     }
 
@@ -359,6 +346,57 @@ export class AuthService {
     return { reset: true };
   }
 
+  async changePassword(
+    userId: string,
+    currentSessionId: string,
+    input: ChangePasswordInput,
+  ): Promise<{ changed: true; revokedSessionCount: number }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const verified = user
+      ? await argon2.verify(user.passwordHash, input.currentPassword).catch(() => false)
+      : false;
+    if (!user || !verified) {
+      await this.audit.record({
+        actorId: userId,
+        action: "auth.password_change_failed",
+        targetType: "User",
+        targetId: userId,
+      });
+      throw new UnauthorizedException({
+        code: "CURRENT_PASSWORD_INCORRECT",
+        message: "현재 비밀번호가 올바르지 않습니다.",
+      });
+    }
+
+    const passwordHash = await this.hashPassword(input.newPassword);
+    const revoked = await this.prisma.$transaction(async (transaction) => {
+      await transaction.user.update({
+        where: { id: userId },
+        data: { passwordHash, mustChangePassword: false },
+      });
+      await transaction.authToken.updateMany({
+        where: { userId, purpose: "PASSWORD_RESET", usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      return transaction.session.updateMany({
+        where: {
+          userId,
+          id: { not: currentSessionId },
+          revokedAt: null,
+        },
+        data: { revokedAt: new Date(), revokeReason: "password_changed" },
+      });
+    });
+    await this.audit.record({
+      actorId: userId,
+      action: "auth.password_changed",
+      targetType: "User",
+      targetId: userId,
+      metadata: { revokedSessionCount: revoked.count },
+    });
+    return { changed: true, revokedSessionCount: revoked.count };
+  }
+
   async logoutAll(userId: string, currentSessionId: string): Promise<{ revokedCount: number }> {
     const result = await this.prisma.session.updateMany({
       where: { userId, revokedAt: null },
@@ -419,9 +457,7 @@ export class AuthService {
       userId: user.id,
       refreshTokenHash: this.hashRefreshToken(refreshToken),
       expiresAt,
-      ...(metadata.userAgent === undefined
-        ? {}
-        : { userAgent: metadata.userAgent.slice(0, 500) }),
+      ...(metadata.userAgent === undefined ? {} : { userAgent: metadata.userAgent.slice(0, 500) }),
       ...(metadata.ip === undefined ? {} : { ipHash: this.hashSensitive(metadata.ip) }),
     };
     await this.prisma.session.create({
@@ -461,8 +497,9 @@ export class AuthService {
   }
 
   private async signAccessToken(user: User, sessionId: string): Promise<string> {
-    const expiresIn = (this.config.get<string>("ACCESS_TOKEN_TTL") ??
-      "15m") as NonNullable<JwtSignOptions["expiresIn"]>;
+    const expiresIn = (this.config.get<string>("ACCESS_TOKEN_TTL") ?? "15m") as NonNullable<
+      JwtSignOptions["expiresIn"]
+    >;
     return this.jwt.signAsync(
       { sub: user.id, sid: sessionId, email: user.email, typ: "access" },
       {
@@ -474,7 +511,9 @@ export class AuthService {
     );
   }
 
-  private async signRefreshToken(session: Pick<Session, "id" | "userId" | "expiresAt">): Promise<string> {
+  private async signRefreshToken(
+    session: Pick<Session, "id" | "userId" | "expiresAt">,
+  ): Promise<string> {
     const expiresIn = Math.max(1, Math.floor((session.expiresAt.getTime() - Date.now()) / 1000));
     return this.jwt.signAsync(
       {

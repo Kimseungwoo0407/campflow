@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  changePasswordSchema,
   createInviteSchema,
   createManualCandidateSchema,
   loginSchema,
+  managerPointGrantSchema,
   oddEvenGameSchema,
   signUpSchema,
 } from "./index";
@@ -88,5 +90,33 @@ describe("공유 입력 계약", () => {
         clientRoundId: "ladder-round-4",
       }).success,
     ).toBe(true);
+  });
+
+  it("본인 비밀번호 변경은 안전한 새 비밀번호와 기존 비밀번호 차이를 검사한다", () => {
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: "old-password-2026",
+        newPassword: "new-password-2026",
+      }).success,
+    ).toBe(true);
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: "same-password-2026",
+        newPassword: "same-password-2026",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("관리자 포인트 지급은 10P 단위와 공개 사유를 요구한다", () => {
+    const base = {
+      targetUserId: "01KYNMKJWRDZXX5C6E68TBNK1X",
+      reason: "장보기 담당 보상",
+      clientRequestId: "point-grant-request-1",
+    };
+    expect(managerPointGrantSchema.safeParse({ ...base, amount: 10 }).success).toBe(true);
+    expect(managerPointGrantSchema.safeParse({ ...base, amount: 15 }).success).toBe(false);
+    expect(managerPointGrantSchema.safeParse({ ...base, amount: 10, reason: "" }).success).toBe(
+      false,
+    );
   });
 });

@@ -134,7 +134,7 @@ export function TripArcadePage() {
   const tapMachineRef = useRef<HTMLElement | null>(null);
   const tapRoundIdRef = useRef("");
   const tapSubmitLockedRef = useRef(false);
-  const [wager, setWager] = useState(50);
+  const [wager, setWager] = useState(10);
   const [stage, setStage] = useState<"idle" | "running" | "result">("idle");
   const [animationResult, setAnimationResult] = useState<GameRound | null>(null);
   const [revealedResult, setRevealedResult] = useState<GameRound | null>(null);
@@ -472,9 +472,9 @@ export function TripArcadePage() {
               <input
                 className="input"
                 type="number"
-                min="5"
+                min="10"
                 max="500"
-                step="5"
+                step="10"
                 value={wager}
                 onChange={(event) => setWager(Number(event.target.value))}
               />
@@ -928,7 +928,7 @@ export function TripArcadePage() {
             <div>
               <span>CampFlow</span>
               <strong>행운 추첨권</strong>
-              <small>1회 30P</small>
+              <small>1회 {point(data.rules.games.lottery.pricePerDraw)}</small>
             </div>
             <div>
               <span>{String(lotteryDraw?.label ?? "추첨 중")}</span>
@@ -937,7 +937,7 @@ export function TripArcadePage() {
           </div>
           {stage === "idle" && (
             <Button
-              disabled={data.myWallet.balance < 30}
+              disabled={data.myWallet.balance < data.rules.games.lottery.pricePerDraw}
               onClick={() =>
                 play.mutate({
                   path: "lottery",
@@ -946,7 +946,7 @@ export function TripArcadePage() {
                 })
               }
             >
-              <Sparkles size={18} /> 30P로 추첨 시작
+              <Sparkles size={18} /> {point(data.rules.games.lottery.pricePerDraw)}로 추첨 시작
             </Button>
           )}
           {busy && <p className="machine-status">추첨 공을 충분히 섞는 중…</p>}

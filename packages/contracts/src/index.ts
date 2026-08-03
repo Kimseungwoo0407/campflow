@@ -62,6 +62,17 @@ export const resetPasswordSchema = z
   })
   .strict();
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(128),
+    newPassword: passwordSchema,
+  })
+  .strict()
+  .refine((value) => value.currentPassword !== value.newPassword, {
+    path: ["newPassword"],
+    message: "새 비밀번호는 현재 비밀번호와 달라야 합니다.",
+  });
+
 export const updateProfileSchema = z
   .object({
     nickname: nicknameSchema.optional(),
@@ -343,12 +354,36 @@ export const redeemRewardSchema = z
   })
   .strict();
 
+export const managerPointGrantSchema = z
+  .object({
+    targetUserId: z.string().trim().min(10).max(40),
+    amount: z
+      .number()
+      .int()
+      .min(10, "최소 지급 포인트는 10P입니다.")
+      .max(10_000, "한 번에 최대 10,000P까지 지급할 수 있습니다.")
+      .refine((value) => value % 10 === 0, "10P 단위로 입력해 주세요."),
+    reason: z.string().trim().min(2, "지급 사유를 입력해 주세요.").max(100),
+    clientRequestId: z.string().trim().min(8).max(80),
+  })
+  .strict();
+
+export const achievementKeySchema = z.enum([
+  "FIRST_CHECK_IN",
+  "TRIP_HELPER_3",
+  "ARCADE_EXPLORER",
+  "TAP_TOTAL_200",
+  "SNAIL_STREAK_3",
+  "GAME_ROUNDS_10",
+  "FIRST_REWARD",
+]);
+
 export const oddEvenGameSchema = z
   .object({
     startChoice: z.enum(["LEFT", "RIGHT"]).optional(),
     rungCountChoice: z.union([z.literal(3), z.literal(4)]).optional(),
     endChoice: z.enum(["ODD", "EVEN"]).optional(),
-    wager: z.number().int().min(5).max(500),
+    wager: z.number().int().min(10).max(500),
     clientRoundId: z.string().trim().min(8).max(80),
   })
   .strict()
@@ -383,7 +418,7 @@ export const oddEvenGameSchema = z
 export const snailRaceGameSchema = z
   .object({
     snail: z.number().int().min(1).max(4),
-    wager: z.number().int().min(5).max(500),
+    wager: z.number().int().min(10).max(500),
     clientRoundId: z.string().trim().min(8).max(80),
   })
   .strict();
@@ -430,6 +465,7 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type CreateGroupInput = z.infer<typeof createGroupSchema>;
 export type UpdateGroupInput = z.infer<typeof updateGroupSchema>;
@@ -457,6 +493,8 @@ export type CreateFileUploadInput = z.infer<typeof createFileUploadSchema>;
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdatePaymentInput = z.infer<typeof updatePaymentSchema>;
 export type RedeemRewardInput = z.infer<typeof redeemRewardSchema>;
+export type ManagerPointGrantInput = z.infer<typeof managerPointGrantSchema>;
+export type AchievementKey = z.infer<typeof achievementKeySchema>;
 export type OddEvenGameInput = z.infer<typeof oddEvenGameSchema>;
 export type SnailRaceGameInput = z.infer<typeof snailRaceGameSchema>;
 export type RpsRouletteGameInput = z.infer<typeof rpsRouletteGameSchema>;

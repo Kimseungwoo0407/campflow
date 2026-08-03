@@ -19,6 +19,7 @@ import { NotFoundPage } from "./pages/not-found-page";
 import { SettingsPage } from "./pages/settings-page";
 import { TripDetailPage, TripsPage } from "./pages/trips-pages";
 import { TripArcadePage } from "./pages/trip-arcade-page";
+import { TripAchievementsPage } from "./pages/trip-achievements-page";
 import {
   TripBoardPage,
   TripDiscoverPage,
@@ -74,6 +75,7 @@ export function App() {
           <Route path="/trips/:tripId/transport" element={<TripTransportPage />} />
           <Route path="/trips/:tripId/expenses" element={<TripExpensesPage />} />
           <Route path="/trips/:tripId/points" element={<TripPointsPage />} />
+          <Route path="/trips/:tripId/achievements" element={<TripAchievementsPage />} />
           <Route path="/trips/:tripId/games/:gameId" element={<TripArcadePage />} />
           <Route path="/trips/:tripId/board" element={<TripBoardPage />} />
           <Route path="/trips/:tripId/lounge" element={<TripLoungePage />} />

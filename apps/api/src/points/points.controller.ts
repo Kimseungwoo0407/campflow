@@ -1,7 +1,10 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 import {
+  achievementKeySchema,
   lotteryDrawSchema,
+  managerPointGrantSchema,
   createPenaltyMatchSchema,
   joinPenaltyMatchSchema,
   oddEvenGameSchema,
@@ -9,7 +12,9 @@ import {
   rpsRouletteGameSchema,
   snailRaceGameSchema,
   submitTapScoreSchema,
+  type AchievementKey,
   type LotteryDrawInput,
+  type ManagerPointGrantInput,
   type CreatePenaltyMatchInput,
   type JoinPenaltyMatchInput,
   type OddEvenGameInput,
@@ -42,6 +47,31 @@ export class PointsController {
   @Post("trips/:tripId/points/check-in")
   checkIn(@CurrentUser() user: AuthenticatedUser, @Param("tripId") tripId: string) {
     return this.points.checkIn(user.id, tripId);
+  }
+
+  @Post("trips/:tripId/points/grants")
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  grantPoints(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("tripId") tripId: string,
+    @Body(new ZodValidationPipe(managerPointGrantSchema)) input: ManagerPointGrantInput,
+  ) {
+    return this.points.grantPoints(user.id, tripId, input);
+  }
+
+  @Get("trips/:tripId/achievements")
+  achievements(@CurrentUser() user: AuthenticatedUser, @Param("tripId") tripId: string) {
+    return this.points.achievements(user.id, tripId);
+  }
+
+  @Post("trips/:tripId/achievements/:achievementKey/claim")
+  claimAchievement(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("tripId") tripId: string,
+    @Param("achievementKey", new ZodValidationPipe(achievementKeySchema))
+    achievementKey: AchievementKey,
+  ) {
+    return this.points.claimAchievement(user.id, tripId, achievementKey);
   }
 
   @Post("trips/:tripId/rewards/:rewardId/redeem")

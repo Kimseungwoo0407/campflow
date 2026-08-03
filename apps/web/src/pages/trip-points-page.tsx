@@ -4,7 +4,9 @@ import {
   CalendarCheck,
   Coins,
   Gift,
+  History,
   Medal,
+  Megaphone,
   Shield,
   Target,
   Trophy,
@@ -13,8 +15,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, Card, Spinner } from "@campflow/ui";
+import { managerPointGrantSchema } from "@campflow/contracts";
 import { apiRequest } from "../api/client";
 import { useAuthStore } from "../stores/auth";
+import { PointsTabs } from "./points-tabs";
 import {
   describeResult,
   gameName,
@@ -69,6 +73,10 @@ export function TripPointsPage() {
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [targetUserId, setTargetUserId] = useState("");
+  const [grantTargetUserId, setGrantTargetUserId] = useState("");
+  const [grantAmount, setGrantAmount] = useState("10");
+  const [grantReason, setGrantReason] = useState("");
+  const [grantRequestId, setGrantRequestId] = useState(() => crypto.randomUUID());
   const dashboard = useQuery({
     queryKey: ["points", tripId],
     queryFn: () => apiRequest<PointsDashboard>(`trips/${tripId}/points`),
@@ -100,6 +108,27 @@ export function TripPointsPage() {
       }),
     onSuccess: refresh,
   });
+  const managerGrant = useMutation({
+    mutationFn: () => {
+      const parsed = managerPointGrantSchema.parse({
+        targetUserId: grantTargetUserId,
+        amount: Number(grantAmount),
+        reason: grantReason,
+        clientRequestId: grantRequestId,
+      });
+      return apiRequest(`trips/${tripId}/points/grants`, {
+        method: "POST",
+        body: JSON.stringify(parsed),
+      });
+    },
+    onSuccess: () => {
+      setGrantTargetUserId("");
+      setGrantAmount("10");
+      setGrantReason("");
+      setGrantRequestId(crypto.randomUUID());
+      refresh();
+    },
+  });
 
   if (dashboard.isPending) {
     return (
@@ -125,13 +154,13 @@ export function TripPointsPage() {
   }
 
   const data = dashboard.data;
-  const error = checkIn.error ?? redeem.error;
+  const error = checkIn.error ?? redeem.error ?? managerGrant.error;
 
   return (
     <WorkspaceShell
       eyebrow="포인트 홈"
       title="활동으로 모으고, 게임장에서 사용하세요"
-      description="네 명 모두 0P에서 시작합니다. 출석과 여행 준비 활동으로 포인트를 쌓을 수 있습니다."
+      description="출석과 여행 준비 활동, 업적 보상으로 포인트를 쌓을 수 있습니다."
       actions={
         <Button onClick={() => checkIn.mutate()} disabled={checkIn.isPending}>
           <CalendarCheck size={18} />
@@ -139,6 +168,7 @@ export function TripPointsPage() {
         </Button>
       }
     >
+      <PointsTabs tripId={tripId} />
       <p className="arcade-notice">{data.rules.notice}</p>
       {error && <div className="form-error">{error.message}</div>}
 
@@ -159,12 +189,87 @@ export function TripPointsPage() {
                 ? "오늘 출석 완료"
                 : checkIn.data
                   ? `출석 보상 ${point(checkIn.data.awarded)}`
-                  : "시작 잔액은 모두 0P"}
+                  : "오늘 출석하고 포인트 받기"}
             </strong>
             <span>출석 +20P · 3일 연속 +10P · 7일 연속 +30P · 여행 당일 +50P</span>
           </div>
         </Card>
       </section>
+
+      {data.myRole === "MANAGER" && (
+        <Card className="manager-point-grant-card">
+          <div className="manager-point-grant-copy">
+            <Megaphone />
+            <div>
+              <span className="eyebrow">관리자 전용</span>
+              <h2>멤버에게 포인트 지급</h2>
+              <p>
+                본인에게는 지급할 수 없습니다. 지급자·대상·금액·사유는 전체 포인트 내역과 단체
+                라운지에 즉시 공개됩니다.
+              </p>
+            </div>
+          </div>
+          <form
+            className="manager-point-grant-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              managerGrant.mutate();
+            }}
+          >
+            <label>
+              <span>받을 멤버</span>
+              <select
+                className="input"
+                value={grantTargetUserId}
+                onChange={(event) => setGrantTargetUserId(event.target.value)}
+                required
+              >
+                <option value="">선택</option>
+                {data.balanceLeaderboard
+                  .filter((wallet) => wallet.userId !== currentUser?.id)
+                  .map((wallet) => (
+                    <option key={wallet.userId} value={wallet.userId}>
+                      {wallet.user.nickname}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              <span>지급 포인트</span>
+              <input
+                className="input"
+                type="number"
+                min={10}
+                max={10_000}
+                step={10}
+                value={grantAmount}
+                onChange={(event) => setGrantAmount(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              <span>공개 지급 사유</span>
+              <input
+                className="input"
+                value={grantReason}
+                onChange={(event) => setGrantReason(event.target.value)}
+                minLength={2}
+                maxLength={100}
+                placeholder="예: 장보기 담당 수고비"
+                required
+              />
+            </label>
+            <Button type="submit" disabled={managerGrant.isPending}>
+              {managerGrant.isPending ? "공개 지급 중…" : "전체 공개 후 지급"}
+            </Button>
+          </form>
+          {managerGrant.isSuccess && (
+            <p className="form-notice" role="status">
+              포인트를 지급하고 전체 공개 내역과 단체 라운지에 기록했습니다.
+            </p>
+          )}
+        </Card>
+      )}
 
       <section className="workspace-section arcade-lobby">
         <div className="section-heading-row">
@@ -289,6 +394,38 @@ export function TripPointsPage() {
             </Card>
           ))}
         </div>
+      </section>
+
+      <section className="workspace-section point-ledger-section">
+        <div className="section-heading-row">
+          <div>
+            <h2>
+              <History size={19} /> 전체 공개 포인트 내역
+            </h2>
+            <small>관리자 지급을 포함해 모든 멤버에게 동일한 기록이 표시됩니다.</small>
+          </div>
+        </div>
+        <Card className="point-ledger-card">
+          <div className="history-list">
+            {data.recentEntries.length === 0 && (
+              <p className="empty-inline">아직 포인트 내역이 없습니다.</p>
+            )}
+            {data.recentEntries.map((entry) => (
+              <div key={entry.id}>
+                <span>
+                  {entry.user.nickname} · {time(entry.createdAt)}
+                </span>
+                <strong>
+                  {entry.sourceKey?.startsWith("admin-grant-") ? "관리자 공개 지급" : entry.reason}
+                </strong>
+                <b className={entry.delta >= 0 ? "point-positive" : "point-negative"}>
+                  {entry.delta >= 0 ? "+" : ""}
+                  {point(entry.delta)}
+                </b>
+              </div>
+            ))}
+          </div>
+        </Card>
       </section>
 
       <section className="history-layout">

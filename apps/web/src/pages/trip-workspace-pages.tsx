@@ -218,6 +218,7 @@ const workspaceLinks = [
 
 const arcadeDropdownLinks = [
   { path: "points", label: "포인트 홈", emoji: "🏆" },
+  { path: "achievements", label: "업적", emoji: "🏅" },
   { path: "games/tap", label: "10초 탭", emoji: "👆" },
   { path: "games/odd-even", label: "홀짝 사다리", emoji: "🪜" },
   { path: "games/snail-race", label: "달팽이 레이스", emoji: "🐌" },

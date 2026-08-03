@@ -52,7 +52,7 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       data: { username: `소유자-${randomUUID()}` },
     });
 
-    await request(app.getHttpServer())
+    const secondaryLoginResponse = await request(app.getHttpServer())
       .post("/v1/auth/login")
       .send({
         identifier: (await prisma.user.findUniqueOrThrow({ where: { id: owner.user.id } }))
@@ -60,6 +60,29 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
         password: "SafePassword2026!",
       })
       .expect(200);
+    const secondaryLogin = (secondaryLoginResponse.body as ApiSuccess<AuthResult>).data;
+
+    await request(app.getHttpServer())
+      .post("/v1/auth/change-password")
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({ currentPassword: "wrong-password", newPassword: "SaferPassword2026!" })
+      .expect(401);
+    await request(app.getHttpServer())
+      .post("/v1/auth/change-password")
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        currentPassword: "SafePassword2026!",
+        newPassword: "SaferPassword2026!",
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.data.changed).toBe(true);
+        expect(body.data.revokedSessionCount).toBeGreaterThanOrEqual(1);
+      });
+    await request(app.getHttpServer())
+      .get("/v1/me")
+      .set("authorization", `Bearer ${secondaryLogin.accessToken}`)
+      .expect(401);
 
     const groupResponse = await request(app.getHttpServer())
       .post("/v1/groups")
@@ -153,6 +176,113 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       .set("authorization", `Bearer ${friend.accessToken}`)
       .expect(201);
 
+    const grantRequestId = randomUUID();
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/grants`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({
+        targetUserId: owner.user.id,
+        amount: 100,
+        reason: "권한 없는 지급",
+        clientRequestId: randomUUID(),
+      })
+      .expect(403);
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/grants`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        targetUserId: owner.user.id,
+        amount: 100,
+        reason: "본인 지급",
+        clientRequestId: randomUUID(),
+      })
+      .expect(409);
+    const pointGrant = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/grants`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        targetUserId: friend.user.id,
+        amount: 100,
+        reason: "장보기 담당 보상",
+        clientRequestId: grantRequestId,
+      })
+      .expect(201);
+    expect(pointGrant.body).toMatchObject({
+      data: {
+        duplicate: false,
+        entry: { delta: 100, user: { id: friend.user.id } },
+      },
+    });
+    const duplicatePointGrant = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/grants`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        targetUserId: friend.user.id,
+        amount: 100,
+        reason: "장보기 담당 보상",
+        clientRequestId: grantRequestId,
+      })
+      .expect(201);
+    expect(duplicatePointGrant.body.data.entry.id).toBe(pointGrant.body.data.entry.id);
+    expect(duplicatePointGrant.body.data.duplicate).toBe(true);
+
+    const publicMessages = await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}/messages`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .expect(200);
+    expect(publicMessages.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          body: expect.stringContaining("소유자 관리자가 친구님에게 +100P"),
+        }),
+      ]),
+    );
+
+    await prisma.gameRound.createMany({
+      data: Array.from({ length: 3 }, () => ({
+        id: randomUUID(),
+        tripId: trip.id,
+        userId: friend.user.id,
+        gameType: "SNAIL_RACE" as const,
+        clientRoundId: randomUUID(),
+        wager: 10,
+        pointDelta: 30,
+        result: { selected: 1, winner: 1, won: true },
+      })),
+    });
+    const achievementProgress = await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}/achievements`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .expect(200);
+    expect(achievementProgress.body.data.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "SNAIL_STREAK_3",
+          progress: 3,
+          target: 3,
+          reward: 100,
+          claimable: true,
+        }),
+      ]),
+    );
+    const achievementClaim = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/achievements/SNAIL_STREAK_3/claim`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .expect(201);
+    expect(achievementClaim.body).toMatchObject({
+      data: { alreadyClaimed: false, entry: { delta: 100 } },
+    });
+    const duplicateAchievementClaim = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/achievements/SNAIL_STREAK_3/claim`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .expect(201);
+    expect(duplicateAchievementClaim.body).toMatchObject({
+      data: {
+        alreadyClaimed: true,
+        entry: { id: achievementClaim.body.data.entry.id },
+      },
+    });
+
     const placeResponse = await request(app.getHttpServer())
       .post(`/v1/trips/${trip.id}/places/manual`)
       .set("authorization", `Bearer ${owner.accessToken}`)
@@ -219,7 +349,7 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       .send({
         startChoice: "LEFT",
         rungCountChoice: 3,
-        wager: 5,
+        wager: 10,
         clientRoundId: randomUUID(),
       })
       .expect(201);
@@ -260,6 +390,15 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       .set("authorization", `Bearer ${owner.accessToken}`)
       .expect(200);
     expect(pointsDashboard.body.data.balanceLeaderboard).toHaveLength(2);
+    expect(pointsDashboard.body.data.myRole).toBe("MANAGER");
+    expect(pointsDashboard.body.data.recentEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          delta: 100,
+          reason: expect.stringContaining("관리자 공개 지급"),
+        }),
+      ]),
+    );
     expect(pointsDashboard.body.data.rules.games.lottery.tiers[0]).toMatchObject({
       probability: "0.0000001%",
     });
@@ -280,5 +419,22 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       .get(`/v1/trips/${trip.id}/points`)
       .set("authorization", `Bearer ${outsider.accessToken}`)
       .expect(404);
+
+    await request(app.getHttpServer())
+      .post("/v1/auth/login")
+      .send({
+        identifier: (await prisma.user.findUniqueOrThrow({ where: { id: owner.user.id } }))
+          .username,
+        password: "SafePassword2026!",
+      })
+      .expect(401);
+    await request(app.getHttpServer())
+      .post("/v1/auth/login")
+      .send({
+        identifier: (await prisma.user.findUniqueOrThrow({ where: { id: owner.user.id } }))
+          .username,
+        password: "SaferPassword2026!",
+      })
+      .expect(200);
   });
 });

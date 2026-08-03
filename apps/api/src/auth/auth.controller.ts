@@ -15,11 +15,13 @@ import { Throttle } from "@nestjs/throttler";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { CookieOptions, Response } from "express";
 import {
+  changePasswordSchema,
   forgotPasswordSchema,
   loginSchema,
   resetPasswordSchema,
   signUpSchema,
   verifyEmailSchema,
+  type ChangePasswordInput,
   type ForgotPasswordInput,
   type LoginInput,
   type ResetPasswordInput,
@@ -77,9 +79,7 @@ export class AuthController {
   @HttpCode(200)
   @Post("verify-email")
   @ApiOperation({ summary: "단일 사용 토큰으로 이메일 확인" })
-  verifyEmail(
-    @Body(new ZodValidationPipe(verifyEmailSchema)) input: VerifyEmailInput,
-  ) {
+  verifyEmail(@Body(new ZodValidationPipe(verifyEmailSchema)) input: VerifyEmailInput) {
     return this.auth.verifyEmail(input);
   }
 
@@ -88,9 +88,7 @@ export class AuthController {
   @HttpCode(200)
   @Post("forgot-password")
   @ApiOperation({ summary: "계정 열거를 방지하는 비밀번호 재설정 요청" })
-  forgotPassword(
-    @Body(new ZodValidationPipe(forgotPasswordSchema)) input: ForgotPasswordInput,
-  ) {
+  forgotPassword(@Body(new ZodValidationPipe(forgotPasswordSchema)) input: ForgotPasswordInput) {
     return this.auth.forgotPassword(input);
   }
 
@@ -99,10 +97,20 @@ export class AuthController {
   @HttpCode(200)
   @Post("reset-password")
   @ApiOperation({ summary: "단일 사용 토큰으로 비밀번호 재설정" })
-  resetPassword(
-    @Body(new ZodValidationPipe(resetPasswordSchema)) input: ResetPasswordInput,
-  ) {
+  resetPassword(@Body(new ZodValidationPipe(resetPasswordSchema)) input: ResetPasswordInput) {
     return this.auth.resetPassword(input);
+  }
+
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post("change-password")
+  @ApiOperation({ summary: "현재 비밀번호 확인 후 내 비밀번호 변경" })
+  changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(changePasswordSchema)) input: ChangePasswordInput,
+  ) {
+    return this.auth.changePassword(user.id, user.sessionId, input);
   }
 
   @Public()
@@ -110,10 +118,7 @@ export class AuthController {
   @HttpCode(200)
   @Post("refresh")
   @ApiOperation({ summary: "회전식 refresh cookie로 access token 갱신" })
-  async refresh(
-    @Req() request: RequestContext,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async refresh(@Req() request: RequestContext, @Res({ passthrough: true }) response: Response) {
     const token = request.cookies[REFRESH_COOKIE_NAME] as string | undefined;
     const result = await this.auth.refresh(token ?? "");
     this.setSessionCookies(response, result.refreshToken, result.csrfToken);
@@ -125,10 +130,7 @@ export class AuthController {
   @HttpCode(200)
   @Post("logout")
   @ApiOperation({ summary: "현재 refresh session 로그아웃" })
-  async logout(
-    @Req() request: RequestContext,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async logout(@Req() request: RequestContext, @Res({ passthrough: true }) response: Response) {
     await this.auth.logout(request.cookies[REFRESH_COOKIE_NAME] as string | undefined);
     this.clearSessionCookies(response);
     return { loggedOut: true };

@@ -1,4 +1,4 @@
-import { payoutWithProfitMultiplier } from "./points.service";
+import { maximumConsecutiveWins, payoutWithProfitMultiplier } from "./points.service";
 
 describe("포인트 게임 순이익 배수", () => {
   it("짱깸보 10P의 5배 당첨은 판돈 반환과 별도로 50P 순이익을 준다", () => {
@@ -15,5 +15,20 @@ describe("포인트 게임 순이익 배수", () => {
 
     expect(credited).toBe(145);
     expect(credited - wager).toBe(95);
+  });
+});
+
+describe("업적 연승 계산", () => {
+  it("패배 전후를 분리해 가장 긴 달팽이 연승만 계산한다", () => {
+    expect(
+      maximumConsecutiveWins([
+        { won: true },
+        { won: false },
+        { won: true },
+        { won: true },
+        { won: true },
+        { won: false },
+      ]),
+    ).toBe(3);
   });
 });

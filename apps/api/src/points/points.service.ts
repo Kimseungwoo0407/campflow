@@ -2,7 +2,9 @@ import { ConflictException, Injectable, NotFoundException } from "@nestjs/common
 import { randomInt } from "node:crypto";
 import { Prisma, type GameType, type PointEntryKind } from "@prisma/client";
 import type {
+  AchievementKey,
   LotteryDrawInput,
+  ManagerPointGrantInput,
   OddEvenGameInput,
   CreatePenaltyMatchInput,
   JoinPenaltyMatchInput,
@@ -101,6 +103,91 @@ const ladderPayouts = [
   { selectionCount: 3, probability: "25%", multiplier: 3.8 },
 ] as const;
 
+const achievementDefinitions = [
+  {
+    key: "FIRST_CHECK_IN",
+    title: "첫 발자국",
+    description: "출석 체크를 1회 완료하세요.",
+    reward: 30,
+    target: 1,
+    metric: "CHECK_INS",
+  },
+  {
+    key: "TRIP_HELPER_3",
+    title: "여행 준비 도우미",
+    description: "서로 다른 여행 준비 활동 3종에 참여하세요.",
+    reward: 60,
+    target: 3,
+    metric: "ACTIVITY_TYPES",
+  },
+  {
+    key: "ARCADE_EXPLORER",
+    title: "게임장 탐험가",
+    description: "서로 다른 게임 4종을 플레이하세요.",
+    reward: 80,
+    target: 4,
+    metric: "GAME_TYPES",
+  },
+  {
+    key: "TAP_TOTAL_200",
+    title: "손가락 예열 완료",
+    description: "10초 탭에서 누적 200회를 기록하세요.",
+    reward: 50,
+    target: 200,
+    metric: "TAP_TOTAL",
+  },
+  {
+    key: "SNAIL_STREAK_3",
+    title: "달팽이 승부사",
+    description: "달팽이 레이스에서 3연속 승리하세요.",
+    reward: 100,
+    target: 3,
+    metric: "SNAIL_WIN_STREAK",
+  },
+  {
+    key: "GAME_ROUNDS_10",
+    title: "게임 마니아",
+    description: "게임을 10판 플레이하세요.",
+    reward: 100,
+    target: 10,
+    metric: "GAME_ROUNDS",
+  },
+  {
+    key: "FIRST_REWARD",
+    title: "포인트 첫 사용",
+    description: "포인트 상점에서 아이템을 1회 사용하세요.",
+    reward: 50,
+    target: 1,
+    metric: "REWARD_USES",
+  },
+] as const satisfies ReadonlyArray<{
+  key: AchievementKey;
+  title: string;
+  description: string;
+  reward: number;
+  target: number;
+  metric:
+    | "CHECK_INS"
+    | "ACTIVITY_TYPES"
+    | "GAME_TYPES"
+    | "TAP_TOTAL"
+    | "SNAIL_WIN_STREAK"
+    | "GAME_ROUNDS"
+    | "REWARD_USES";
+}>;
+
+export function maximumConsecutiveWins(results: unknown[]): number {
+  let current = 0;
+  let maximum = 0;
+  for (const result of results) {
+    const won =
+      typeof result === "object" && result !== null && "won" in result && result.won === true;
+    current = won ? current + 1 : 0;
+    maximum = Math.max(maximum, current);
+  }
+  return maximum;
+}
+
 export function payoutWithProfitMultiplier(wager: number, multiplier: number): number {
   return wager + Math.floor(wager * multiplier);
 }
@@ -113,7 +200,7 @@ export class PointsService {
   ) {}
 
   async dashboard(userId: string, tripId: string) {
-    await this.access.requireMembership(userId, tripId);
+    const membership = await this.access.requireMembership(userId, tripId);
     await Promise.all([this.ensureWallets(tripId), this.ensureRewards(tripId)]);
     const { start: todayStart, end: todayEnd } = this.kstDayRange();
     const [wallets, recentEntries, rewards, recentRedemptions, recentGames, tapRewardedToday] =
@@ -166,6 +253,7 @@ export class PointsService {
     );
     return {
       myWallet: wallets.find((wallet) => wallet.userId === userId),
+      myRole: membership.role,
       balanceLeaderboard: byBalance,
       activityLeaderboard: byActivity,
       recentEntries,
@@ -199,7 +287,7 @@ export class PointsService {
           win: "배수만큼 순이익 지급 후 판돈 별도 반환",
           multipliers: rpsMultipliers,
         },
-        lottery: { pricePerDraw: 30, tiers: lotteryTiers },
+        lottery: { pricePerDraw: 10, tiers: lotteryTiers },
       },
     };
   }
@@ -249,6 +337,233 @@ export class PointsService {
       return updated;
     });
     return { alreadyCheckedIn: false, wallet, awarded, streak, membership };
+  }
+
+  async grantPoints(managerId: string, tripId: string, input: ManagerPointGrantInput) {
+    await this.access.requireManager(managerId, tripId);
+    if (managerId === input.targetUserId) {
+      throw new ConflictException({
+        code: "POINT_SELF_GRANT_FORBIDDEN",
+        message: "관리자는 본인에게 포인트를 지급할 수 없습니다.",
+      });
+    }
+    await this.access.requireMembership(input.targetUserId, tripId);
+    const [manager, target] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: managerId },
+        select: { id: true, nickname: true },
+      }),
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: input.targetUserId },
+        select: { id: true, nickname: true },
+      }),
+    ]);
+    const sourceKey = `manager-grant:${managerId}:${input.clientRequestId}`;
+    const findExisting = () =>
+      this.prisma.pointLedger.findUnique({
+        where: {
+          tripId_userId_sourceKey: {
+            tripId,
+            userId: input.targetUserId,
+            sourceKey,
+          },
+        },
+        include: { user: { select: { id: true, nickname: true } } },
+      });
+    const existing = await findExisting();
+    if (existing) return { entry: existing, duplicate: true };
+
+    try {
+      const result = await this.prisma.$transaction(async (transaction) => {
+        await this.changeBalance(
+          transaction,
+          tripId,
+          input.targetUserId,
+          input.amount,
+          "ADJUST",
+          `${manager.nickname} 관리자 공개 지급 · ${input.reason}`,
+          sourceKey,
+          {
+            category: "MANAGER_GRANT",
+            managerId,
+            managerNickname: manager.nickname,
+            targetNickname: target.nickname,
+            amount: input.amount,
+            reason: input.reason,
+          },
+        );
+        const entry = await transaction.pointLedger.findUniqueOrThrow({
+          where: {
+            tripId_userId_sourceKey: {
+              tripId,
+              userId: input.targetUserId,
+              sourceKey,
+            },
+          },
+          include: { user: { select: { id: true, nickname: true } } },
+        });
+        const announcement = await transaction.chatMessage.create({
+          data: {
+            id: newId(),
+            tripId,
+            authorId: managerId,
+            body: `📢 ${manager.nickname} 관리자가 ${target.nickname}님에게 +${input.amount.toLocaleString("ko-KR")}P를 지급했습니다. 사유: ${input.reason}`,
+            clientMessageId: `point-grant-${entry.id}`,
+          },
+          include: { author: { select: { id: true, nickname: true } } },
+        });
+        await transaction.auditLog.create({
+          data: {
+            id: newId(),
+            actorId: managerId,
+            action: "points.manager_grant",
+            targetType: "PointWallet",
+            targetId: input.targetUserId,
+            metadataSafe: {
+              tripId,
+              amount: input.amount,
+              reason: input.reason,
+              pointLedgerId: entry.id,
+            },
+          },
+        });
+        return { entry, announcement, duplicate: false };
+      });
+      return result;
+    } catch (error: unknown) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const duplicate = await findExisting();
+        if (duplicate) return { entry: duplicate, duplicate: true };
+      }
+      throw error;
+    }
+  }
+
+  async achievements(userId: string, tripId: string) {
+    await this.access.requireMembership(userId, tripId);
+    const [pointEntries, gameRounds, rewardUses] = await Promise.all([
+      this.prisma.pointLedger.findMany({
+        where: { tripId, userId },
+        select: { sourceKey: true },
+      }),
+      this.prisma.gameRound.findMany({
+        where: { tripId, userId },
+        select: { gameType: true, score: true, result: true, createdAt: true },
+        orderBy: { createdAt: "asc" },
+      }),
+      this.prisma.rewardRedemption.count({ where: { tripId, buyerId: userId } }),
+    ]);
+    const sourceKeys = pointEntries
+      .map((entry) => entry.sourceKey)
+      .filter((sourceKey): sourceKey is string => Boolean(sourceKey));
+    const activityTypes = new Set(
+      sourceKeys
+        .filter((sourceKey) => sourceKey.startsWith("activity:"))
+        .map((sourceKey) => sourceKey.split(":")[1])
+        .filter((ruleKey): ruleKey is string => Boolean(ruleKey)),
+    );
+    const claimedKeys = new Set(
+      sourceKeys
+        .filter((sourceKey) => sourceKey.startsWith("achievement:"))
+        .map((sourceKey) => sourceKey.slice("achievement:".length)),
+    );
+    const snailResults = gameRounds
+      .filter((round) => round.gameType === "SNAIL_RACE")
+      .map((round) => round.result);
+    const progressByMetric = {
+      CHECK_INS: sourceKeys.filter((sourceKey) => sourceKey.startsWith("check-in:")).length,
+      ACTIVITY_TYPES: activityTypes.size,
+      GAME_TYPES: new Set(gameRounds.map((round) => round.gameType)).size,
+      TAP_TOTAL: gameRounds
+        .filter((round) => round.gameType === "TAP")
+        .reduce((sum, round) => sum + (round.score ?? 0), 0),
+      SNAIL_WIN_STREAK: maximumConsecutiveWins(snailResults),
+      GAME_ROUNDS: gameRounds.length,
+      REWARD_USES: rewardUses,
+    };
+    const items = achievementDefinitions.map((definition) => {
+      const progress = Math.min(progressByMetric[definition.metric], definition.target);
+      const claimed = claimedKeys.has(definition.key);
+      return {
+        key: definition.key,
+        title: definition.title,
+        description: definition.description,
+        reward: definition.reward,
+        progress,
+        target: definition.target,
+        achieved: progress >= definition.target,
+        claimed,
+        claimable: progress >= definition.target && !claimed,
+      };
+    });
+    return {
+      items,
+      totalCount: items.length,
+      achievedCount: items.filter((item) => item.achieved).length,
+      claimedCount: items.filter((item) => item.claimed).length,
+    };
+  }
+
+  async claimAchievement(userId: string, tripId: string, achievementKey: AchievementKey) {
+    const progress = await this.achievements(userId, tripId);
+    const achievement = progress.items.find((item) => item.key === achievementKey);
+    if (!achievement) {
+      throw new NotFoundException({
+        code: "ACHIEVEMENT_NOT_FOUND",
+        message: "업적을 찾을 수 없습니다.",
+      });
+    }
+    const sourceKey = `achievement:${achievement.key}`;
+    const findExisting = () =>
+      this.prisma.pointLedger.findUnique({
+        where: { tripId_userId_sourceKey: { tripId, userId, sourceKey } },
+        include: { user: { select: { id: true, nickname: true } } },
+      });
+    if (achievement.claimed) {
+      return { achievement, entry: await findExisting(), alreadyClaimed: true };
+    }
+    if (!achievement.claimable) {
+      throw new ConflictException({
+        code: "ACHIEVEMENT_NOT_COMPLETED",
+        message: "아직 달성하지 못한 업적입니다.",
+      });
+    }
+
+    try {
+      const entry = await this.prisma.$transaction(async (transaction) => {
+        await this.changeBalance(
+          transaction,
+          tripId,
+          userId,
+          achievement.reward,
+          "EARN",
+          `업적 달성 · ${achievement.title}`,
+          sourceKey,
+          { achievementKey: achievement.key, reward: achievement.reward },
+        );
+        return transaction.pointLedger.findUniqueOrThrow({
+          where: { tripId_userId_sourceKey: { tripId, userId, sourceKey } },
+          include: { user: { select: { id: true, nickname: true } } },
+        });
+      });
+      return {
+        achievement: { ...achievement, claimed: true, claimable: false },
+        entry,
+        alreadyClaimed: false,
+      };
+    } catch (error: unknown) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const existing = await findExisting();
+        if (existing) {
+          return {
+            achievement: { ...achievement, claimed: true, claimable: false },
+            entry: existing,
+            alreadyClaimed: true,
+          };
+        }
+      }
+      throw error;
+    }
   }
 
   async awardActivity(
@@ -478,7 +793,7 @@ export class PointsService {
     await this.access.requireMembership(userId, tripId);
     const existing = await this.existingRound(tripId, userId, input.clientRoundId);
     if (existing) return existing;
-    const wager = input.count * 30;
+    const wager = input.count * 10;
     const draws = Array.from({ length: input.count }, () => {
       const tier = this.weighted(lotteryTiers, 1_000_000_000);
       return { key: tier.key, label: tier.label, prize: tier.prize };

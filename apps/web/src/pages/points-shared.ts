@@ -17,9 +17,32 @@ export interface PointWallet {
 export interface PointEntry {
   id: string;
   delta: number;
+  balanceAfter: number;
+  kind: "EARN" | "SPEND" | "WIN" | "LOSS" | "ADJUST";
   reason: string;
+  sourceKey: string | null;
+  metadata: unknown;
   createdAt: string;
   user: UserRef;
+}
+
+export interface Achievement {
+  key: string;
+  title: string;
+  description: string;
+  reward: number;
+  progress: number;
+  target: number;
+  achieved: boolean;
+  claimed: boolean;
+  claimable: boolean;
+}
+
+export interface AchievementsData {
+  items: Achievement[];
+  totalCount: number;
+  achievedCount: number;
+  claimedCount: number;
 }
 
 export interface RewardItem {
@@ -78,6 +101,7 @@ export interface PointsRules {
 
 export interface PointsDashboard {
   myWallet: PointWallet;
+  myRole: "MANAGER" | "MEMBER" | "GUEST";
   balanceLeaderboard: PointWallet[];
   activityLeaderboard: PointWallet[];
   recentEntries: PointEntry[];

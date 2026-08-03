@@ -2,7 +2,12 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Field, Spinner } from "@campflow/ui";
-import { updateProfileSchema, type UpdateProfileInput } from "@campflow/contracts";
+import {
+  changePasswordSchema,
+  updateProfileSchema,
+  type ChangePasswordInput,
+  type UpdateProfileInput,
+} from "@campflow/contracts";
 import { apiRequest, ApiClientError } from "../api/client";
 import { useAuthStore } from "../stores/auth";
 
@@ -28,6 +33,12 @@ interface SettingsForm {
   canDrive: boolean;
 }
 
+interface PasswordForm {
+  currentPassword: string;
+  newPassword: string;
+  confirmation: string;
+}
+
 export function SettingsPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
@@ -47,6 +58,9 @@ export function SettingsPage() {
       foodDislikesText: "",
       canDrive: false,
     },
+  });
+  const passwordForm = useForm<PasswordForm>({
+    defaultValues: { currentPassword: "", newPassword: "", confirmation: "" },
   });
 
   useEffect(() => {
@@ -70,6 +84,14 @@ export function SettingsPage() {
       await queryClient.invalidateQueries({ queryKey: ["me"] });
     },
   });
+  const passwordChange = useMutation({
+    mutationFn: (input: ChangePasswordInput) =>
+      apiRequest<{ changed: true; revokedSessionCount: number }>("auth/change-password", {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => passwordForm.reset(),
+  });
 
   async function submit(form: SettingsForm) {
     const split = (value: string) =>
@@ -89,6 +111,29 @@ export function SettingsPage() {
       return;
     }
     await update.mutateAsync(parsed.data);
+  }
+
+  async function submitPassword(form: PasswordForm) {
+    passwordForm.clearErrors();
+    if (form.newPassword !== form.confirmation) {
+      passwordForm.setError("confirmation", { message: "새 비밀번호가 서로 다릅니다." });
+      return;
+    }
+    const parsed = changePasswordSchema.safeParse({
+      currentPassword: form.currentPassword,
+      newPassword: form.newPassword,
+    });
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const field = issue?.path[0];
+      if (field === "currentPassword" || field === "newPassword") {
+        passwordForm.setError(field, { message: issue?.message ?? "입력값을 확인해 주세요." });
+      } else {
+        passwordForm.setError("root", { message: issue?.message ?? "입력값을 확인해 주세요." });
+      }
+      return;
+    }
+    await passwordChange.mutateAsync(parsed.data).catch(() => undefined);
   }
 
   if (me.isPending) {
@@ -154,6 +199,66 @@ export function SettingsPage() {
           )}
           <Button type="submit" disabled={update.isPending}>
             {update.isPending ? "저장 중…" : "설정 저장"}
+          </Button>
+        </form>
+      </Card>
+      <Card className="settings-security-card">
+        <div className="settings-card-heading">
+          <span className="eyebrow">계정 보안</span>
+          <h2>비밀번호 변경</h2>
+          <p>현재 비밀번호를 확인한 뒤 새 비밀번호로 변경합니다.</p>
+        </div>
+        <form
+          className="stack-form"
+          onSubmit={(event) => void passwordForm.handleSubmit(submitPassword)(event)}
+        >
+          <Field
+            label="현재 비밀번호"
+            error={passwordForm.formState.errors.currentPassword?.message}
+            inputProps={{
+              id: "settings-current-password",
+              type: "password",
+              autoComplete: "current-password",
+              ...passwordForm.register("currentPassword", { required: true }),
+            }}
+          />
+          <Field
+            label="새 비밀번호"
+            hint="12자 이상, 영문자와 숫자를 각각 하나 이상 포함해 주세요."
+            error={passwordForm.formState.errors.newPassword?.message}
+            inputProps={{
+              id: "settings-new-password",
+              type: "password",
+              autoComplete: "new-password",
+              ...passwordForm.register("newPassword", { required: true }),
+            }}
+          />
+          <Field
+            label="새 비밀번호 확인"
+            error={passwordForm.formState.errors.confirmation?.message}
+            inputProps={{
+              id: "settings-password-confirmation",
+              type: "password",
+              autoComplete: "new-password",
+              ...passwordForm.register("confirmation", { required: true }),
+            }}
+          />
+          {(passwordForm.formState.errors.root?.message || passwordChange.error) && (
+            <p className="form-error" role="alert">
+              {passwordForm.formState.errors.root?.message ??
+                (passwordChange.error instanceof ApiClientError
+                  ? passwordChange.error.message
+                  : "비밀번호를 변경하지 못했습니다.")}
+            </p>
+          )}
+          {passwordChange.data && (
+            <p className="form-notice" role="status">
+              비밀번호를 변경했습니다. 다른 기기 세션 {passwordChange.data.revokedSessionCount}개를
+              로그아웃했습니다.
+            </p>
+          )}
+          <Button type="submit" disabled={passwordChange.isPending}>
+            {passwordChange.isPending ? "변경 중…" : "비밀번호 변경"}
           </Button>
         </form>
       </Card>
