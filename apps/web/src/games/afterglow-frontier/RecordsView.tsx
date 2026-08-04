@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Swords,
   Trophy,
+  Users,
 } from "lucide-react";
 import type { BattleRecord } from "./types";
 
@@ -49,7 +50,7 @@ export function RecordsView({
         <section className="af-replay-hero">
           <div>
             <span>결정론적 입력 리플레이</span>
-            <h2>{selected.opponent} 침략</h2>
+            <h2>{selected.opponent} {selected.mode === "FRIENDLY" ? "친선전" : "침략"}</h2>
             <p>
               시드 {selected.seed} · 입력 {selected.commands.length}개 · 영상 파일 미저장
             </p>
@@ -71,9 +72,9 @@ export function RecordsView({
             <strong>{selected.reachedZone}구역</strong>
           </article>
           <article>
-            <Coins />
-            <span>확보 전리품</span>
-            <strong>{selected.securedLoot}</strong>
+            {selected.mode === "FRIENDLY" ? <Users /> : <Coins />}
+            <span>{selected.mode === "FRIENDLY" ? "전투 유형" : "확보 전리품"}</span>
+            <strong>{selected.mode === "FRIENDLY" ? "친선전" : selected.securedLoot}</strong>
           </article>
           <article>
             <Trophy />
@@ -84,7 +85,7 @@ export function RecordsView({
         <section className="af-replay-timeline">
           <header>
             <span>명령 이벤트 로그</span>
-            <strong>밸런스 mvp-2026.08.04.1</strong>
+            <strong>밸런스 mvp-2026.08.04.3</strong>
           </header>
           {selected.commands.length === 0 ? (
             <p>기록된 조작 명령이 없습니다.</p>
@@ -150,12 +151,15 @@ export function RecordsView({
                     minute: "2-digit",
                   }).format(new Date(record.completedAt))}
                 </small>
-                <strong>{record.opponent}</strong>
+                <strong>
+                  {record.opponent}
+                  {record.mode === "FRIENDLY" && <em className="af-friendly-badge">친선</em>}
+                </strong>
                 <span>
                   {outcomeLabel(record)} · {record.reachedZone}구역 도달
                 </span>
               </div>
-              <b>+{record.securedLoot} 보급</b>
+              <b>{record.mode === "FRIENDLY" ? "전적 기록" : `+${record.securedLoot} 보급`}</b>
               <ChevronRight />
             </button>
           ))}

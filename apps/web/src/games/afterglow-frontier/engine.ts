@@ -1,13 +1,21 @@
-import { ATTACK_UNITS, BATTLE_TIME_LIMIT, DEFENSE_FACILITIES, DEFENSE_UNITS } from "./game-data";
+import {
+  ATTACK_UNITS,
+  BATTLE_TIME_LIMIT,
+  DEFENSE_FACILITIES,
+  DEFENSE_UNITS,
+  HEROES,
+} from "./game-data";
 import type {
   AttackUnitKey,
   BattleCommandLog,
+  BattleMode,
   BattleOutcome,
   BattleRecord,
   BattleState,
   Combatant,
   CommandKind,
   DefenseUnitKey,
+  HeroKey,
   MatchCandidate,
 } from "./types";
 
@@ -102,7 +110,12 @@ function lootAtZone(candidate: MatchCandidate, zone: number): number {
   });
 }
 
-export function createBattle(candidate: MatchCandidate): BattleState {
+export function createBattle(
+  candidate: MatchCandidate,
+  heroKey: HeroKey = "ruan",
+  mode: BattleMode = "RANKED",
+): BattleState {
+  const heroDefinition = HEROES[heroKey];
   const structures: BattleState["structures"] = (
     [
       ["gate", 27],
@@ -112,12 +125,17 @@ export function createBattle(candidate: MatchCandidate): BattleState {
     ] as const
   ).map(([key, x]) => {
     const definition = DEFENSE_FACILITIES[key];
+    const snapshot = candidate.defenseSnapshot;
+    const wallMultiplier = 1 + Math.max(0, (snapshot?.wallLevel ?? 1) - 1) * 0.15;
+    const facilityMultiplier =
+      1 + Math.max(0, (snapshot?.facilityLevels[key] ?? 1) - 1) * 0.12;
+    const maxHp = Math.round(definition.maxHp * wallMultiplier * facilityMultiplier);
     return {
       id: key,
       name: definition.name,
       x,
-      hp: definition.maxHp,
-      maxHp: definition.maxHp,
+      hp: maxHp,
+      maxHp,
       attack: definition.attack,
       range: definition.range,
       attackInterval: definition.attackInterval,
@@ -127,25 +145,27 @@ export function createBattle(candidate: MatchCandidate): BattleState {
   });
   return {
     id: crypto.randomUUID(),
+    mode,
     seed: Math.floor(Math.random() * 2_147_483_647),
     candidate,
     elapsed: 0,
     timeLimit: BATTLE_TIME_LIMIT,
-    command: 64,
-    maxCommand: 100,
+    command: Math.min(130, 64 + heroDefinition.commandBonus),
+    maxCommand: 100 + heroDefinition.commandBonus,
     hero: {
       id: "hero",
       side: "ATTACKER",
       kind: "HERO",
-      name: "길잡이 류안",
+      heroKey,
+      name: heroDefinition.name,
       x: 8,
-      hp: 560,
-      maxHp: 560,
-      attack: 58,
-      armor: 7,
-      range: 5.5,
-      moveSpeed: 5,
-      attackInterval: 0.7,
+      hp: heroDefinition.hp,
+      maxHp: heroDefinition.hp,
+      attack: heroDefinition.attack,
+      armor: heroDefinition.armor,
+      range: heroDefinition.range,
+      moveSpeed: heroDefinition.moveSpeed,
+      attackInterval: heroDefinition.attackInterval,
       attackCooldown: 0,
       population: 0,
       status: "MOVING",
@@ -161,8 +181,8 @@ export function createBattle(candidate: MatchCandidate): BattleState {
     structures,
     unitCooldowns: { bulwark: 0, lancer: 0, marksman: 0, sapper: 0 },
     populationUsed: 0,
-    populationCap: 10,
-    defenderReserve: 22,
+    populationCap: 10 + heroDefinition.populationBonus,
+    defenderReserve: 22 + Math.max(0, (candidate.defenseSnapshot?.wallLevel ?? 1) - 1) * 2,
     waveClock: 0,
     waveIndex: 0,
     destroyedCount: 0,
@@ -175,7 +195,10 @@ export function createBattle(candidate: MatchCandidate): BattleState {
     focusMode: false,
     outcome: "IN_PROGRESS",
     commands: [],
-    message: "외곽 방어선에 진입했습니다.",
+    message:
+      mode === "FRIENDLY"
+        ? `${candidate.callsign} 지휘관과 친선 공성전을 시작합니다.`
+        : "외곽 방어선에 진입했습니다.",
   };
 }
 
@@ -597,6 +620,8 @@ export function battleRecordFromState(state: BattleState): BattleRecord {
     AttackUnitKey | undefined;
   return {
     id: state.id,
+    mode: state.mode,
+    opponentId: state.candidate.id,
     opponent: state.candidate.callsign,
     outcome,
     completedAt: new Date().toISOString(),

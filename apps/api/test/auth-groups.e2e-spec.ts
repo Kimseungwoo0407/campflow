@@ -346,11 +346,50 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       .get(`/v1/trips/${trip.id}/points`)
       .set("authorization", `Bearer ${friend.accessToken}`)
       .expect(200);
-    expect(
-      inventoryAfterPurchase.body.data.rewardInventory.find(
-        (entry: { rewardItemId: string }) => entry.rewardItemId === oneDrinkReward.id,
-      ).quantity,
-    ).toBe(5);
+    const purchasedInventory = inventoryAfterPurchase.body.data.rewardInventory.find(
+      (entry: { rewardItemId: string }) => entry.rewardItemId === oneDrinkReward.id,
+    );
+    expect(purchasedInventory).toMatchObject({
+      quantity: 5,
+      nextSaleValue: 126,
+    });
+    expect(purchasedInventory.sellableGrantIds).toHaveLength(1);
+    const freeGrantId = purchasedInventory.grantIds.find(
+      (grantId: string) => !purchasedInventory.sellableGrantIds.includes(grantId),
+    );
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/rewards/inventory/${freeGrantId}/sell`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .expect(409)
+      .expect(({ body }) => {
+        expect(body).toMatchObject({ error: { code: "FREE_REWARD_NOT_SELLABLE" } });
+      });
+    const soldReward = await request(app.getHttpServer())
+      .post(
+        `/v1/trips/${trip.id}/rewards/inventory/${purchasedInventory.sellableGrantIds[0]}/sell`,
+      )
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .expect(201);
+    expect(soldReward.body).toMatchObject({
+      data: {
+        refundedPoints: 126,
+        alreadySold: false,
+        redemption: { status: "SOLD", cost: 180 },
+      },
+    });
+    const duplicateSale = await request(app.getHttpServer())
+      .post(
+        `/v1/trips/${trip.id}/rewards/inventory/${purchasedInventory.sellableGrantIds[0]}/sell`,
+      )
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .expect(201);
+    expect(duplicateSale.body).toMatchObject({
+      data: {
+        refundedPoints: 126,
+        alreadySold: true,
+        wallet: { balance: soldReward.body.data.wallet.balance },
+      },
+    });
     expect(inventoryAfterPurchase.body.data.recentRedemptions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -531,7 +570,7 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
         expect.objectContaining({
           userId: friend.user.id,
           rewardItemId: oneDrinkReward.id,
-          quantity: 5,
+          quantity: 4,
         }),
       ]),
     );

@@ -34,6 +34,7 @@ import {
 } from "./pages/trip-workspace-pages";
 import { useAuthStore } from "./stores/auth";
 import { TripPointsPage } from "./pages/trip-points-page";
+import { AfterglowErrorBoundary } from "./games/afterglow-frontier/AfterglowErrorBoundary";
 
 const AfterglowFrontierPage = lazy(
   () => import("./games/afterglow-frontier/AfterglowFrontierPage"),
@@ -83,9 +84,11 @@ export function App() {
           <Route
             path="/trips/:tripId/games/afterglow-frontier"
             element={
-              <Suspense fallback={<div className="page">잔광전선을 준비하는 중…</div>}>
-                <AfterglowFrontierPage />
-              </Suspense>
+              <AfterglowErrorBoundary>
+                <Suspense fallback={<div className="page">잔광전선을 준비하는 중…</div>}>
+                  <AfterglowFrontierPage />
+                </Suspense>
+              </AfterglowErrorBoundary>
             }
           />
           <Route path="/trips/:tripId/games/:gameId" element={<TripArcadePage />} />

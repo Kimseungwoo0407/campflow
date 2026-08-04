@@ -11,7 +11,7 @@ import {
   Swords,
 } from "lucide-react";
 import { Button } from "@campflow/ui";
-import { DEFENSE_FACILITIES, DEFENSE_UNITS } from "./game-data";
+import { DEFENSE_FACILITIES, DEFENSE_UNITS, HEROES } from "./game-data";
 import type { MatchCandidate, TerritoryState } from "./types";
 
 function number(value: number): string {
@@ -34,6 +34,7 @@ export function InvasionView({
   notice: string;
 }) {
   const facility = DEFENSE_FACILITIES[candidate.signatureFacility];
+  const activeHero = HEROES[territory.activeHeroKey];
   return (
     <div className="af-view af-invasion-view">
       <section className="af-match-brief">
@@ -133,8 +134,12 @@ export function InvasionView({
               <strong>30 / {number(territory.battlePoints)}</strong>
             </span>
             <span>
+              <b>출전 지휘관</b>
+              <strong>{activeHero.name}</strong>
+            </span>
+            <span>
               <b>공격 인구</b>
-              <strong>최대 10</strong>
+              <strong>최대 {10 + activeHero.populationBonus}</strong>
             </span>
           </div>
         </aside>

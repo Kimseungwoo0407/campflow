@@ -32,6 +32,7 @@ import {
 import { apiRequest } from "../api/client";
 import { useAuthStore } from "../stores/auth";
 import { PointsTabs } from "./points-tabs";
+import { RewardSaleDialog } from "./reward-sale-dialog";
 import {
   point,
   time,
@@ -114,6 +115,7 @@ export function TripPointsPage() {
   const [rewardGrantQuantity, setRewardGrantQuantity] = useState("1");
   const [rewardGrantReason, setRewardGrantReason] = useState("");
   const [rewardGrantRequestId, setRewardGrantRequestId] = useState(() => crypto.randomUUID());
+  const [sellCandidate, setSellCandidate] = useState<RewardInventoryEntry | null>(null);
   const dashboard = useQuery({
     queryKey: ["points", tripId],
     queryFn: () => apiRequest<PointsDashboard>(`trips/${tripId}/points`),
@@ -147,6 +149,20 @@ export function TripPointsPage() {
         }),
       }),
     onSuccess: refresh,
+  });
+  const sellReward = useMutation({
+    mutationFn: (entry: RewardInventoryEntry) => {
+      const grantId = entry.sellableGrantIds[0];
+      if (!grantId) throw new Error("판매 가능한 구매 아이템이 없습니다.");
+      return apiRequest<{
+        refundedPoints: number;
+        alreadySold: boolean;
+      }>(`trips/${tripId}/rewards/inventory/${grantId}/sell`, { method: "POST" });
+    },
+    onSuccess: () => {
+      setSellCandidate(null);
+      refresh();
+    },
   });
   const managerGrant = useMutation({
     mutationFn: () => {
@@ -241,6 +257,7 @@ export function TripPointsPage() {
     checkIn.error ??
     redeem.error ??
     useGrantedReward.error ??
+    sellReward.error ??
     managerGrant.error ??
     managerSetBalance.error ??
     managerGrantReward.error;
@@ -658,7 +675,8 @@ export function TripPointsPage() {
             <div>
               <h2>내 아이템 보유함</h2>
               <small>
-                구매하거나 관리자가 지급한 아이템의 보유량입니다. 사용할 때 대상을 선택합니다.
+                구매 아이템은 실제 구매가의 70%에 판매할 수 있습니다. 무료 지급분은 판매되지
+                않습니다.
               </small>
             </div>
             <select
@@ -686,16 +704,34 @@ export function TripPointsPage() {
                 <p>{entry.rewardItem.description}</p>
                 <div>
                   <strong>{entry.quantity}개 보유</strong>
-                  <Button
-                    disabled={
-                      useGrantedReward.isPending ||
-                      (rewardRequiresTarget(entry.rewardItem) && !targetUserId)
-                    }
-                    onClick={() => useGrantedReward.mutate(entry)}
-                  >
-                    사용
-                  </Button>
+                  <div className="reward-card-actions">
+                    <Button
+                      disabled={
+                        useGrantedReward.isPending ||
+                        sellReward.isPending ||
+                        (rewardRequiresTarget(entry.rewardItem) && !targetUserId)
+                      }
+                      onClick={() => useGrantedReward.mutate(entry)}
+                    >
+                      사용
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      disabled={entry.sellableGrantIds.length === 0 || sellReward.isPending}
+                      onClick={() => {
+                        sellReward.reset();
+                        setSellCandidate(entry);
+                      }}
+                    >
+                      {entry.sellableGrantIds.length > 0
+                        ? `판매 +${point(entry.nextSaleValue)}`
+                        : "판매 불가"}
+                    </Button>
+                  </div>
                 </div>
+                <small className="reward-resale-note">
+                  구매분 {entry.sellableGrantIds.length}개 판매 가능
+                </small>
               </Card>
             ))}
           </div>
@@ -776,7 +812,7 @@ export function TripPointsPage() {
 
       <section className="history-layout history-layout--single">
         <Card>
-          <h2>아이템 사용 기록</h2>
+          <h2>아이템 사용·판매 기록</h2>
           <div className="history-list">
             {data.recentRedemptions.length === 0 && (
               <p className="empty-inline">아직 아이템 사용 기록이 없습니다.</p>
@@ -788,12 +824,32 @@ export function TripPointsPage() {
                   {time(redemption.resolvedAt ?? redemption.createdAt)}
                 </span>
                 <strong>{redemption.rewardItem.title}</strong>
-                <b>{redemption.target ? `→ ${redemption.target.nickname}` : "대상 없음"}</b>
+                <b>
+                  {redemption.status === "SOLD"
+                    ? `판매 +${point(Math.floor((redemption.cost * 70) / 100))}`
+                    : redemption.target
+                      ? `→ ${redemption.target.nickname}`
+                      : "대상 없음"}
+                </b>
               </div>
             ))}
           </div>
         </Card>
       </section>
+      {sellCandidate && (
+        <RewardSaleDialog
+          itemTitle={sellCandidate.rewardItem.title}
+          refundedPoints={sellCandidate.nextSaleValue}
+          pending={sellReward.isPending}
+          error={sellReward.error?.message ?? null}
+          onCancel={() => {
+            if (sellReward.isPending) return;
+            sellReward.reset();
+            setSellCandidate(null);
+          }}
+          onConfirm={() => sellReward.mutate(sellCandidate)}
+        />
+      )}
     </WorkspaceShell>
   );
 }

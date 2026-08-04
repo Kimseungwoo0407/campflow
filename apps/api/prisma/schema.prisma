@@ -120,6 +120,7 @@ enum RewardRedemptionStatus {
   PENDING
   ACCEPTED
   REJECTED
+  SOLD
 }
 
 enum GameType {

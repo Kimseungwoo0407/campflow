@@ -21,9 +21,11 @@ import {
   gameName,
   point,
   type GameRound,
+  type GameRoundHistory,
   type PenaltyMatch,
   type PointsDashboard,
 } from "./points-shared";
+import { LadderHistoryPanel } from "./ladder-history-panel";
 import { WorkspaceShell } from "./trip-workspace-pages";
 
 const arcadeGames = [
@@ -161,10 +163,17 @@ export function TripArcadePage() {
     enabled: gameId === "penalty-kick",
     refetchInterval: gameId === "penalty-kick" ? 10_000 : false,
   });
+  const oddEvenHistory = useQuery({
+    queryKey: ["odd-even-rounds", tripId],
+    queryFn: () =>
+      apiRequest<GameRoundHistory>(`trips/${tripId}/games/odd-even/rounds`),
+    enabled: gameId === "odd-even",
+  });
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["points", tripId] });
     void queryClient.invalidateQueries({ queryKey: ["penalty-matches", tripId] });
+    void queryClient.invalidateQueries({ queryKey: ["odd-even-rounds", tripId] });
   };
 
   const play = useMutation({
@@ -556,7 +565,8 @@ export function TripArcadePage() {
       )}
 
       {selectedGame.id === "odd-even" && (
-        <section className="arcade-machine ladder-machine">
+        <div className="ladder-game-layout">
+          <section className="arcade-machine ladder-machine">
           <div className="ladder-picks">
             <div>
               <span>출발점</span>
@@ -745,7 +755,14 @@ export function TripArcadePage() {
               </Button>
             </>
           )}
-        </section>
+          </section>
+          <LadderHistoryPanel
+            history={oddEvenHistory.data}
+            loading={oddEvenHistory.isPending}
+            error={oddEvenHistory.error?.message ?? null}
+            onRetry={() => void oddEvenHistory.refetch()}
+          />
+        </div>
       )}
 
       {selectedGame.id === "snail-race" && (

@@ -113,8 +113,8 @@ export function BattleView({
         </div>
         <div className="af-ground" aria-hidden="true" />
         <div className="af-loot-float">
-          <span>확보 전리품</span>
-          <strong>{battle.securedLoot}</strong>
+          <span>{battle.mode === "FRIENDLY" ? "친선 규칙" : "확보 전리품"}</span>
+          <strong>{battle.mode === "FRIENDLY" ? "무약탈" : battle.securedLoot}</strong>
         </div>
 
         {battle.structures.map((structure) => (

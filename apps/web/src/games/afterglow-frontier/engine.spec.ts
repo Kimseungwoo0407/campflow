@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MATCH_CANDIDATES, createInitialTerritory } from "./game-data";
 import { calculateLoot, createBattle, summonUnit, tickBattle } from "./engine";
-import { collectProduction, unclaimedProduction } from "./storage";
+import { collectProduction, loadTerritory, unclaimedProduction } from "./storage";
 
 describe("잔광전선 경제", () => {
   it("서버 시각에 해당하는 경과 시간만 생산하고 수령 시 75%를 우선 보호한다", () => {
@@ -32,6 +32,30 @@ describe("잔광전선 경제", () => {
     });
     expect(first).toBe(320);
     expect(repeated).toBe(57);
+  });
+});
+
+describe("잔광전선 저장 데이터 호환", () => {
+  it("기존 버전 세이브에도 성벽·소환·시설 기본값을 보완한다", () => {
+    const legacy = { ...createInitialTerritory(), version: 1 } as Record<string, unknown>;
+    delete legacy.wallLevel;
+    delete legacy.recruitSeals;
+    delete legacy.heroRoster;
+    delete legacy.activeHeroKey;
+    delete legacy.recruit;
+    const defense = { ...(legacy.defense as Record<string, unknown>) };
+    delete defense.facilityLevels;
+    legacy.defense = defense;
+    window.localStorage.setItem(
+      "campflow:afterglow-frontier:v1:legacy-trip:legacy-user",
+      JSON.stringify(legacy),
+    );
+    const migrated = loadTerritory("legacy-trip", "legacy-user");
+    expect(migrated.version).toBe(2);
+    expect(migrated.wallLevel).toBe(1);
+    expect(migrated.recruitSeals).toBe(12);
+    expect(migrated.heroRoster.ruan).toBe(1);
+    expect(migrated.defense.facilityLevels.core).toBe(1);
   });
 });
 

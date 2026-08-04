@@ -2,6 +2,7 @@ import {
   expectedRpsNetMultiplier,
   maximumConsecutiveWins,
   payoutWithProfitMultiplier,
+  rewardResaleValue,
   rpsOutcomeProbabilities,
 } from "./points.service";
 
@@ -32,6 +33,14 @@ describe("포인트 게임 순이익 배수", () => {
       1_000_000,
     );
     expect(expectedRpsNetMultiplier()).toBeLessThan(0);
+  });
+});
+
+describe("아이템 재판매", () => {
+  it("실제 구매가의 70%를 소수점 내림해 환급한다", () => {
+    expect(rewardResaleValue(180)).toBe(126);
+    expect(rewardResaleValue(75)).toBe(52);
+    expect(rewardResaleValue(0)).toBe(0);
   });
 });
 

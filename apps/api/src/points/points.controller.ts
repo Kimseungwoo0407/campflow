@@ -93,6 +93,16 @@ export class PointsController {
     return this.points.useGrantedReward(user.id, tripId, grantId, input);
   }
 
+  @Post("trips/:tripId/rewards/inventory/:grantId/sell")
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  sellReward(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("tripId") tripId: string,
+    @Param("grantId") grantId: string,
+  ) {
+    return this.points.sellReward(user.id, tripId, grantId);
+  }
+
   @Get("trips/:tripId/achievements")
   achievements(@CurrentUser() user: AuthenticatedUser, @Param("tripId") tripId: string) {
     return this.points.achievements(user.id, tripId);
@@ -116,6 +126,14 @@ export class PointsController {
     @Body(new ZodValidationPipe(redeemRewardSchema)) input: RedeemRewardInput,
   ) {
     return this.points.redeem(user.id, tripId, rewardId, input);
+  }
+
+  @Get("trips/:tripId/games/odd-even/rounds")
+  oddEvenRounds(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("tripId") tripId: string,
+  ) {
+    return this.points.gameRoundHistory(user.id, tripId, "ODD_EVEN");
   }
 
   @Post("trips/:tripId/games/odd-even")

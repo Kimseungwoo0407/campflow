@@ -10,13 +10,14 @@ function warriorKind(unit: Combatant): WarriorKind {
 
 export function WarriorSprite({ unit }: { unit: Combatant }) {
   const kind = warriorKind(unit);
+  const heroVariant = unit.kind === "HERO" && unit.heroKey ? ` af-warrior--hero-${unit.heroKey}` : "";
   const hasShield = kind === "bulwark" || kind === "warden";
   const hasCape = kind === "hero" || kind === "marksman" || kind === "slinger";
   const hasSignal = kind === "hero" || kind === "mender";
 
   return (
     <span
-      className={`af-warrior af-warrior--${kind} af-warrior--${unit.side.toLowerCase()}`}
+      className={`af-warrior af-warrior--${kind} af-warrior--${unit.side.toLowerCase()}${heroVariant}`}
       aria-hidden="true"
     >
       <span className="af-warrior__shadow" />

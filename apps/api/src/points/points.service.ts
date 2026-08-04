@@ -200,6 +200,10 @@ export function payoutWithProfitMultiplier(wager: number, multiplier: number): n
   return wager + Math.floor(wager * multiplier);
 }
 
+export function rewardResaleValue(cost: number): number {
+  return Math.floor((Math.max(0, cost) * 70) / 100);
+}
+
 export function expectedRpsNetMultiplier(): number {
   const averageWinMultiplier = rpsMultipliers.reduce(
     (total, outcome) => total + outcome.multiplier * (outcome.weight / 1_000_000),
@@ -283,6 +287,8 @@ export class PointsService {
         rewardItemId: string;
         quantity: number;
         grantIds: string[];
+        sellableGrantIds: string[];
+        nextSaleValue: number;
         user: (typeof grantedRewards)[number]["buyer"];
         rewardItem: (typeof grantedRewards)[number]["rewardItem"];
       }
@@ -293,6 +299,12 @@ export class PointsService {
       if (current) {
         current.quantity += 1;
         current.grantIds.push(grant.id);
+        if (grant.cost > 0) {
+          current.sellableGrantIds.push(grant.id);
+          if (current.sellableGrantIds.length === 1) {
+            current.nextSaleValue = rewardResaleValue(grant.cost);
+          }
+        }
       } else {
         inventoryByMemberAndItem.set(key, {
           id: key,
@@ -300,6 +312,8 @@ export class PointsService {
           rewardItemId: grant.rewardItemId,
           quantity: 1,
           grantIds: [grant.id],
+          sellableGrantIds: grant.cost > 0 ? [grant.id] : [],
+          nextSaleValue: grant.cost > 0 ? rewardResaleValue(grant.cost) : 0,
           user: grant.buyer,
           rewardItem: grant.rewardItem,
         });
@@ -811,6 +825,121 @@ export class PointsService {
     });
   }
 
+  async sellReward(userId: string, tripId: string, grantId: string) {
+    await this.access.requireMembership(userId, tripId);
+    const grant = await this.prisma.rewardRedemption.findFirst({
+      where: { id: grantId, tripId, buyerId: userId },
+      include: {
+        rewardItem: true,
+        buyer: { select: { id: true, nickname: true } },
+        target: { select: { id: true, nickname: true } },
+      },
+    });
+    if (!grant) {
+      throw new NotFoundException({
+        code: "REWARD_NOT_FOUND",
+        message: "판매할 아이템을 찾을 수 없습니다.",
+      });
+    }
+    const refundedPoints = rewardResaleValue(grant.cost);
+    if (grant.status === "SOLD") {
+      return {
+        redemption: grant,
+        refundedPoints,
+        alreadySold: true,
+        wallet: await this.wallet(tripId, userId),
+      };
+    }
+    if (grant.status !== "PENDING") {
+      throw new ConflictException({
+        code: "REWARD_NOT_SELLABLE",
+        message: "이미 사용했거나 판매할 수 없는 아이템입니다.",
+      });
+    }
+    if (grant.cost <= 0 || refundedPoints <= 0) {
+      throw new ConflictException({
+        code: "FREE_REWARD_NOT_SELLABLE",
+        message: "무료로 지급받은 아이템은 판매할 수 없습니다.",
+      });
+    }
+
+    return this.prisma.$transaction(async (transaction) => {
+      const claimed = await transaction.rewardRedemption.updateMany({
+        where: { id: grant.id, tripId, buyerId: userId, status: "PENDING", cost: { gt: 0 } },
+        data: { status: "SOLD", resolvedAt: new Date() },
+      });
+      if (claimed.count === 0) {
+        const existing = await transaction.rewardRedemption.findUniqueOrThrow({
+          where: { id: grant.id },
+          include: {
+            rewardItem: true,
+            buyer: { select: { id: true, nickname: true } },
+            target: { select: { id: true, nickname: true } },
+          },
+        });
+        if (existing.status !== "SOLD") {
+          throw new ConflictException({
+            code: "REWARD_NOT_SELLABLE",
+            message: "이미 사용했거나 판매할 수 없는 아이템입니다.",
+          });
+        }
+        return {
+          redemption: existing,
+          refundedPoints: rewardResaleValue(existing.cost),
+          alreadySold: true,
+          wallet: await this.walletWithTransaction(transaction, tripId, userId),
+        };
+      }
+
+      const wallet = await this.changeBalance(
+        transaction,
+        tripId,
+        userId,
+        refundedPoints,
+        "ADJUST",
+        `${grant.rewardItem.title} 판매`,
+        `reward:${grant.id}:sale`,
+        {
+          rewardItemId: grant.rewardItemId,
+          purchaseCost: grant.cost,
+          resaleRate: 0.7,
+          refundedPoints,
+        },
+      );
+      const previousOutcome =
+        typeof grant.outcome === "object" && grant.outcome !== null && !Array.isArray(grant.outcome)
+          ? grant.outcome
+          : {};
+      const redemption = await transaction.rewardRedemption.update({
+        where: { id: grant.id },
+        data: {
+          outcome: {
+            ...previousOutcome,
+            category: "POINT_RESALE",
+            purchaseCost: grant.cost,
+            resaleRate: 0.7,
+            refundedPoints,
+          },
+        },
+        include: {
+          rewardItem: true,
+          buyer: { select: { id: true, nickname: true } },
+          target: { select: { id: true, nickname: true } },
+        },
+      });
+      await transaction.chatMessage.create({
+        data: {
+          id: newId(),
+          tripId,
+          authorId: userId,
+          body: `${grant.buyer.nickname}님이 아이템 ‘${grant.rewardItem.title}’을 ${refundedPoints.toLocaleString("ko-KR")}P에 판매했습니다.`,
+          clientMessageId: `reward-sale-${grant.id}`,
+        },
+      });
+      return { redemption, refundedPoints, alreadySold: false, wallet };
+    });
+  }
+
   async achievements(userId: string, tripId: string) {
     await this.access.requireMembership(userId, tripId);
     const [pointEntries, gameRounds, rewardUses] = await Promise.all([
@@ -1067,6 +1196,21 @@ export class PointsService {
         won,
       },
     );
+  }
+
+  async gameRoundHistory(userId: string, tripId: string, gameType: GameType) {
+    await this.access.requireMembership(userId, tripId);
+    const where = { tripId, gameType };
+    const [items, total] = await Promise.all([
+      this.prisma.gameRound.findMany({
+        where,
+        include: { user: { select: { id: true, nickname: true } } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 50,
+      }),
+      this.prisma.gameRound.count({ where }),
+    ]);
+    return { items, total, limit: 50 };
   }
 
   async playSnailRace(userId: string, tripId: string, input: SnailRaceGameInput) {

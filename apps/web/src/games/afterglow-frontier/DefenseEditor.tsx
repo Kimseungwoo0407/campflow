@@ -1,18 +1,29 @@
 import {
   ArrowDown,
   ArrowUp,
+  Castle,
   Crosshair,
+  Database,
   HeartPulse,
   Minus,
   Plus,
   Save,
   Shield,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@campflow/ui";
 import { useEffect, useState } from "react";
-import { DEFENSE_BUDGET, DEFENSE_UNITS, defenseCost } from "./game-data";
-import type { DefenseConfig, DefenseUnitKey } from "./types";
+import {
+  DEFENSE_FACILITIES,
+  DEFENSE_UNITS,
+  defenseBudget,
+  defenseCost,
+  facilityUpgradeCost,
+  wallIntegrity,
+  wallUpgradeCost,
+} from "./game-data";
+import type { DefenseConfig, DefenseFacilityKey, DefenseUnitKey } from "./types";
 
 const defenseIcons = {
   warden: Shield,
@@ -21,18 +32,33 @@ const defenseIcons = {
   mender: HeartPulse,
 } as const;
 
+const facilityIcons = {
+  gate: Castle,
+  watchtower: Crosshair,
+  foundry: Database,
+  core: ShieldCheck,
+} as const;
+
 export function DefenseEditor({
   config,
+  wallLevel,
+  totalSupply,
+  onUpgradeWall,
   onSave,
 }: {
   config: DefenseConfig;
+  wallLevel: number;
+  totalSupply: number;
+  onUpgradeWall: () => void;
   onSave: (config: DefenseConfig) => void;
 }) {
   const [draft, setDraft] = useState<DefenseConfig>(config);
   const [saved, setSaved] = useState(false);
   useEffect(() => setDraft(config), [config]);
   const cost = defenseCost(draft);
-  const remaining = DEFENSE_BUDGET - cost;
+  const budget = defenseBudget(wallLevel);
+  const remaining = budget - cost;
+  const nextWallCost = wallUpgradeCost(wallLevel);
   const unitKeys = Object.keys(DEFENSE_UNITS) as DefenseUnitKey[];
 
   const changeCount = (key: DefenseUnitKey, delta: number) => {
@@ -42,6 +68,18 @@ export function DefenseEditor({
       unitCounts: {
         ...current.unitCounts,
         [key]: Math.max(0, Math.min(4, current.unitCounts[key] + delta)),
+      },
+    }));
+  };
+
+  const changeFacilityLevel = (key: DefenseFacilityKey, delta: number) => {
+    const maximumLevel = Math.min(5, wallLevel + 1);
+    setSaved(false);
+    setDraft((current) => ({
+      ...current,
+      facilityLevels: {
+        ...current.facilityLevels,
+        [key]: Math.max(1, Math.min(maximumLevel, current.facilityLevels[key] + delta)),
       },
     }));
   };
@@ -71,9 +109,30 @@ export function DefenseEditor({
           <span>남은 코스트</span>
           <strong>{remaining}</strong>
           <small>
-            {cost} / {DEFENSE_BUDGET} 사용
+            {cost} / {budget} 사용
           </small>
         </div>
+      </section>
+
+      <section className="af-wall-command">
+        <div className="af-wall-command__icon">
+          <Castle aria-hidden="true" />
+          <span>Lv.{wallLevel}</span>
+        </div>
+        <div>
+          <span>성벽 공방 강화</span>
+          <strong>내구도 {wallIntegrity(wallLevel)}% · 방어 코스트 {budget}</strong>
+          <small>
+            다음 강화 시 내구도 +15%, 방어 코스트 +18, 시설 강화 상한이 증가합니다.
+          </small>
+        </div>
+        <Button
+          variant="secondary"
+          disabled={totalSupply < nextWallCost || wallLevel >= 5}
+          onClick={onUpgradeWall}
+        >
+          <Shield /> {wallLevel >= 5 ? "최대 강화" : `${nextWallCost.toLocaleString("ko-KR")} 보급 강화`}
+        </Button>
       </section>
 
       <section className="af-section-block">
@@ -112,6 +171,55 @@ export function DefenseEditor({
                     aria-label={`${unit.name} 한 기 추가`}
                     onClick={() => changeCount(key, 1)}
                     disabled={draft.unitCounts[key] >= 4}
+                  >
+                    <Plus />
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="af-section-block">
+        <header className="af-section-heading">
+          <div>
+            <span>방어 시설 배분</span>
+            <h2>시설 강화도 방어 코스트를 사용합니다</h2>
+          </div>
+          <small>시설 최대 레벨 {Math.min(5, wallLevel + 1)} · 성벽 공방 강화로 상한 증가</small>
+        </header>
+        <div className="af-facility-upgrade-grid">
+          {(Object.keys(DEFENSE_FACILITIES) as DefenseFacilityKey[]).map((key) => {
+            const facility = DEFENSE_FACILITIES[key];
+            const Icon = facilityIcons[key];
+            const level = draft.facilityLevels[key];
+            const maximumLevel = Math.min(5, wallLevel + 1);
+            return (
+              <article key={key}>
+                <Icon aria-hidden="true" />
+                <div>
+                  <span>{facility.role}</span>
+                  <strong>{facility.name} · Lv.{level}</strong>
+                  <small>
+                    체력 +{(level - 1) * 15}% · 강화 코스트 {facilityUpgradeCost(key)} / 단계
+                  </small>
+                </div>
+                <div className="af-stepper" aria-label={`${facility.name} 강화 단계`}>
+                  <button
+                    type="button"
+                    aria-label={`${facility.name} 강화 단계 감소`}
+                    onClick={() => changeFacilityLevel(key, -1)}
+                    disabled={level <= 1}
+                  >
+                    <Minus />
+                  </button>
+                  <strong>{level}</strong>
+                  <button
+                    type="button"
+                    aria-label={`${facility.name} 강화 단계 증가`}
+                    onClick={() => changeFacilityLevel(key, 1)}
+                    disabled={level >= maximumLevel}
                   >
                     <Plus />
                   </button>

@@ -5,12 +5,20 @@ import {
   Database,
   Gem,
   LockKeyhole,
+  ShieldCheck,
   ShieldAlert,
   Sparkles,
   Warehouse,
 } from "lucide-react";
 import { Button } from "@campflow/ui";
-import { generatorCapacity, generatorRate, vaultCapacity } from "./game-data";
+import {
+  defenseBudget,
+  generatorCapacity,
+  generatorRate,
+  vaultCapacity,
+  wallIntegrity,
+  wallUpgradeCost,
+} from "./game-data";
 import type { TerritoryState } from "./types";
 
 function number(value: number): string {
@@ -23,6 +31,7 @@ export function TerritoryView({
   onCollect,
   onUpgradeGenerator,
   onUpgradeVault,
+  onUpgradeWall,
   onGoDefense,
   onGoInvasion,
   notice,
@@ -32,12 +41,14 @@ export function TerritoryView({
   onCollect: () => void;
   onUpgradeGenerator: () => void;
   onUpgradeVault: () => void;
+  onUpgradeWall: () => void;
   onGoDefense: () => void;
   onGoInvasion: () => void;
   notice: string;
 }) {
   const generatorUpgradeCost = state.generatorLevel * 620;
   const vaultUpgradeCost = state.vaultLevel * 760;
+  const nextWallCost = wallUpgradeCost(state.wallLevel);
   const totalSupply = state.protectedSupply + state.exposedSupply;
   const protectedPercent = totalSupply > 0 ? (state.protectedSupply / totalSupply) * 100 : 100;
   const productionCapacity = generatorCapacity(state.generatorLevel);
@@ -66,7 +77,7 @@ export function TerritoryView({
           <div className="af-map-building af-map-building--keep">
             <Castle />
             <b>잔광 중추</b>
-            <small>방어 정상</small>
+            <small>성벽 Lv.{state.wallLevel}</small>
           </div>
         </div>
         <div className="af-collection-dock">
@@ -161,6 +172,23 @@ export function TerritoryView({
               강화 <ArrowUpRight size={17} />
             </Button>
           </article>
+          <article className="af-upgrade-card af-upgrade-card--wall">
+            <ShieldCheck />
+            <div>
+              <span>성벽 공방 · Lv.{state.wallLevel}</span>
+              <strong>
+                내구도 {wallIntegrity(state.wallLevel)}% · 코스트 {defenseBudget(state.wallLevel)}
+              </strong>
+              <small>다음 강화 비용 {number(nextWallCost)} 보급</small>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={onUpgradeWall}
+              disabled={totalSupply < nextWallCost || state.wallLevel >= 5}
+            >
+              {state.wallLevel >= 5 ? "최대" : "강화"} <ArrowUpRight size={17} />
+            </Button>
+          </article>
         </div>
       </section>
 
@@ -168,7 +196,7 @@ export function TerritoryView({
         <button type="button" onClick={onGoDefense}>
           <Warehouse aria-hidden="true" />
           <span>방어 설계</span>
-          <strong>100 코스트 안에서 웨이브 재구성</strong>
+          <strong>{defenseBudget(state.wallLevel)} 코스트 안에서 방어선 재구성</strong>
           <ArrowUpRight aria-hidden="true" />
         </button>
         <button type="button" onClick={onGoInvasion}>

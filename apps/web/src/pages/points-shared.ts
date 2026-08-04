@@ -57,7 +57,7 @@ export interface RewardItem {
 export interface RewardRedemption {
   id: string;
   cost: number;
-  status: "APPLIED" | "PENDING" | "ACCEPTED" | "REJECTED";
+  status: "APPLIED" | "PENDING" | "ACCEPTED" | "REJECTED" | "SOLD";
   createdAt: string;
   resolvedAt: string | null;
   rewardItem: RewardItem;
@@ -71,6 +71,8 @@ export interface RewardInventoryEntry {
   rewardItemId: string;
   quantity: number;
   grantIds: string[];
+  sellableGrantIds: string[];
+  nextSaleValue: number;
   user: UserRef;
   rewardItem: RewardItem;
 }
@@ -84,6 +86,12 @@ export interface GameRound {
   result: Record<string, unknown>;
   createdAt: string;
   user: UserRef;
+}
+
+export interface GameRoundHistory {
+  items: GameRound[];
+  total: number;
+  limit: number;
 }
 
 export interface ActivityRule {

@@ -1,15 +1,21 @@
-import { Castle, Coins, History, Map, Shield, Swords } from "lucide-react";
+import { Castle, Coins, History, Map, Shield, Sparkles, Swords, Ticket, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { apiRequest } from "../../api/client";
 import { WorkspaceShell } from "../../pages/trip-workspace-pages";
 import { useAuthStore } from "../../stores/auth";
 import { BattleView } from "./BattleView";
 import { DefenseEditor } from "./DefenseEditor";
+import { FriendlyBattleView } from "./FriendlyBattleView";
 import { InvasionView } from "./InvasionView";
+import { RecruitView } from "./RecruitView";
 import { RecordsView } from "./RecordsView";
 import { ResultView } from "./ResultView";
 import { TerritoryView } from "./TerritoryView";
-import { MATCH_CANDIDATES } from "./game-data";
+import { HEROES, MATCH_CANDIDATES, wallUpgradeCost } from "./game-data";
+import { createFriendlyCandidate } from "./friendly-battle";
+import { recruitHeroes } from "./recruitment";
+import { calculateBattleRewards } from "./settlement";
 import {
   BATTLE_TICK_MS,
   battleRecordFromState,
@@ -35,16 +41,25 @@ import type {
   BattleState,
   DefenseConfig,
   GameView,
+  HeroKey,
   MatchCandidate,
+  RecruitResult,
+  TripFriend,
 } from "./types";
 import "./afterglow-frontier.css";
 
 const tabs = [
   { id: "territory", label: "영지", icon: Map },
   { id: "defense", label: "방어 편집", icon: Shield },
+  { id: "recruit", label: "지휘관 소환", icon: Sparkles },
   { id: "invasion", label: "침략", icon: Swords },
+  { id: "friendly", label: "친구전", icon: Users },
   { id: "records", label: "전투 기록", icon: History },
 ] as const;
+
+interface FriendTripResponse {
+  members: Array<{ user: TripFriend }>;
+}
 
 function resource(value: number): string {
   return new Intl.NumberFormat("ko-KR").format(Math.floor(value));
@@ -65,6 +80,10 @@ export function AfterglowFrontierPage() {
   const [battle, setBattle] = useState<BattleState | null>(null);
   const [result, setResult] = useState<BattleResultSummary | null>(null);
   const [replay, setReplay] = useState<BattleRecord | null>(null);
+  const [recruitResults, setRecruitResults] = useState<RecruitResult[]>([]);
+  const [friends, setFriends] = useState<TripFriend[]>([]);
+  const [friendStatus, setFriendStatus] = useState<"LOADING" | "READY" | "ERROR">("LOADING");
+  const [friendReload, setFriendReload] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [notice, setNotice] = useState("서버 기준 생산 시각을 동기화했습니다.");
   const settledBattleId = useRef<string | null>(null);
@@ -76,6 +95,27 @@ export function AfterglowFrontierPage() {
   }, []);
 
   useEffect(() => saveTerritory(tripId, userId, territory), [territory, tripId, userId]);
+
+  useEffect(() => {
+    let active = true;
+    setFriendStatus("LOADING");
+    apiRequest<FriendTripResponse>(`trips/${tripId}`)
+      .then((trip) => {
+        if (!active) return;
+        setFriends(
+          trip.members
+            .map((member) => member.user)
+            .filter((member) => member.id !== userId),
+        );
+        setFriendStatus("READY");
+      })
+      .catch(() => {
+        if (active) setFriendStatus("ERROR");
+      });
+    return () => {
+      active = false;
+    };
+  }, [friendReload, tripId, userId]);
 
   useEffect(() => {
     if (!battle || battle.outcome !== "IN_PROGRESS") return;
@@ -91,20 +131,32 @@ export function AfterglowFrontierPage() {
       return;
     settledBattleId.current = battle.id;
     const record = battleRecordFromState(battle);
-    const rewardBattlePoints = Math.max(
-      4,
-      record.reachedZone * 5 + (record.outcome === "ATTACKER_WIN" ? 12 : 0),
-    );
-    const rewardRareMaterials = record.outcome === "ATTACKER_WIN" ? 1 : 0;
-    const leagueDelta = record.outcome === "ATTACKER_WIN" ? 18 : record.reachedZone >= 3 ? 2 : -6;
+    const isFriendly = record.mode === "FRIENDLY";
+    const { rewardBattlePoints, rewardRareMaterials, rewardRecruitSeals, leagueDelta } =
+      calculateBattleRewards(record);
     setTerritory((current) => ({
       ...current,
-      exposedSupply: current.exposedSupply + record.securedLoot,
+      exposedSupply: current.exposedSupply + (isFriendly ? 0 : record.securedLoot),
       battlePoints: current.battlePoints + rewardBattlePoints,
       rareMaterials: current.rareMaterials + rewardRareMaterials,
+      recruitSeals: current.recruitSeals + rewardRecruitSeals,
+      friendlyStats: isFriendly
+        ? {
+            played: current.friendlyStats.played + 1,
+            wins:
+              current.friendlyStats.wins + (record.outcome === "ATTACKER_WIN" ? 1 : 0),
+            lastOpponentId: record.opponentId,
+          }
+        : current.friendlyStats,
       records: [record, ...current.records.filter((entry) => entry.id !== record.id)].slice(0, 20),
     }));
-    setResult({ record, rewardBattlePoints, rewardRareMaterials, leagueDelta });
+    setResult({
+      record,
+      rewardBattlePoints,
+      rewardRareMaterials,
+      rewardRecruitSeals,
+      leagueDelta,
+    });
     setView("result");
   }, [battle]);
 
@@ -131,6 +183,38 @@ export function AfterglowFrontierPage() {
         : { ...spent, vaultLevel: spent.vaultLevel + 1 };
     });
     setNotice(`${kind === "generator" ? "맥동 채집기" : "밀폐 금고"} 강화를 시작했습니다.`);
+  };
+
+  const upgradeWall = () => {
+    const cost = wallUpgradeCost(territory.wallLevel);
+    if (territory.wallLevel >= 5) return;
+    setTerritory((current) => {
+      const spent = spendSupply(current, cost);
+      return spent ? { ...spent, wallLevel: spent.wallLevel + 1 } : current;
+    });
+    setNotice(`성벽 공방을 Lv.${territory.wallLevel + 1}로 강화했습니다. 방어 코스트가 18 증가합니다.`);
+  };
+
+  const recruit = (count: 1 | 10) => {
+    const recruited = recruitHeroes(territory, count);
+    if (!recruited) {
+      setNotice(`소환 인장이 ${count}개 필요합니다.`);
+      return;
+    }
+    setTerritory(recruited.territory);
+    setRecruitResults(recruited.results);
+    const newCount = recruited.results.filter((entry) => entry.isNew).length;
+    setNotice(
+      newCount > 0
+        ? `지휘관 ${newCount}명이 새로 합류했습니다.`
+        : `중복 지휘관이 잔광 조각으로 전환되었습니다.`,
+    );
+  };
+
+  const selectHero = (heroKey: HeroKey) => {
+    if ((territory.heroRoster[heroKey] ?? 0) <= 0) return;
+    setTerritory((current) => ({ ...current, activeHeroKey: heroKey }));
+    setNotice(`${HEROES[heroKey].name}을 다음 침략의 지휘관으로 지정했습니다.`);
   };
 
   const saveDefense = (defense: DefenseConfig) => {
@@ -169,7 +253,15 @@ export function AfterglowFrontierPage() {
     }));
     settledBattleId.current = null;
     setResult(null);
-    setBattle(createBattle(candidate));
+    setBattle(createBattle(candidate, territory.activeHeroKey));
+    setView("battle");
+  };
+
+  const startFriendlyBattle = (friend: TripFriend) => {
+    const friendlyCandidate = createFriendlyCandidate(friend);
+    settledBattleId.current = null;
+    setResult(null);
+    setBattle(createBattle(friendlyCandidate, territory.activeHeroKey, "FRIENDLY"));
     setView("battle");
   };
 
@@ -208,6 +300,9 @@ export function AfterglowFrontierPage() {
           <span>
             <Swords /> {territory.invasionEnergy}/5 행동력
           </span>
+          <span>
+            <Ticket /> {territory.recruitSeals} 소환 인장
+          </span>
         </div>
       }
     >
@@ -235,12 +330,29 @@ export function AfterglowFrontierPage() {
             onCollect={collect}
             onUpgradeGenerator={() => upgrade("generator")}
             onUpgradeVault={() => upgrade("vault")}
+            onUpgradeWall={upgradeWall}
             onGoDefense={() => goTo("defense")}
             onGoInvasion={() => goTo("invasion")}
             notice={notice}
           />
         )}
-        {view === "defense" && <DefenseEditor config={territory.defense} onSave={saveDefense} />}
+        {view === "defense" && (
+          <DefenseEditor
+            config={territory.defense}
+            wallLevel={territory.wallLevel}
+            totalSupply={territory.protectedSupply + territory.exposedSupply}
+            onUpgradeWall={upgradeWall}
+            onSave={saveDefense}
+          />
+        )}
+        {view === "recruit" && (
+          <RecruitView
+            territory={territory}
+            results={recruitResults}
+            onRecruit={recruit}
+            onSelectHero={selectHero}
+          />
+        )}
         {view === "invasion" && candidate && (
           <InvasionView
             territory={territory}
@@ -249,6 +361,15 @@ export function AfterglowFrontierPage() {
             onScout={scout}
             onStart={startInvasion}
             notice={notice}
+          />
+        )}
+        {view === "friendly" && (
+          <FriendlyBattleView
+            territory={territory}
+            friends={friends}
+            status={friendStatus}
+            onRetryLoad={() => setFriendReload((current) => current + 1)}
+            onChallenge={startFriendlyBattle}
           />
         )}
         {view === "records" && (
@@ -272,13 +393,13 @@ export function AfterglowFrontierPage() {
         {view === "result" && result && (
           <ResultView
             result={result}
-            onRetry={() => goTo("invasion")}
+            onRetry={() => goTo(result.record.mode === "FRIENDLY" ? "friendly" : "invasion")}
             onRecords={() => goTo("records")}
             onTerritory={() => goTo("territory")}
           />
         )}
         <footer className="af-version">
-          <Castle /> <span>밸런스 mvp-2026.08.04.1 · 브라우저 수직 슬라이스</span>
+          <Castle /> <span>밸런스 mvp-2026.08.04.3 · 브라우저 수직 슬라이스</span>
         </footer>
       </main>
     </WorkspaceShell>

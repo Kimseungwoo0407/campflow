@@ -2973,6 +2973,125 @@ textarea {
   background: linear-gradient(150deg, #fffef8, #fff7db);
 }
 
+.granted-reward-card > div {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.reward-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.reward-card-actions .button {
+  flex: 1 1 92px;
+  min-height: 40px;
+  padding-right: 0.7rem;
+  padding-left: 0.7rem;
+  font-size: 0.75rem;
+}
+
+.reward-resale-note {
+  color: #7b6a31;
+  font-size: 0.68rem;
+  text-align: left;
+}
+
+.reward-sale-backdrop {
+  z-index: 1200;
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  background: rgb(9 24 35 / 62%);
+  padding: 1rem;
+  backdrop-filter: blur(7px);
+}
+
+.reward-sale-dialog {
+  width: min(100%, 430px);
+  border: 1px solid #c5d5d8;
+  border-radius: 22px;
+  background: #fff;
+  padding: clamp(1.2rem, 4vw, 1.75rem);
+  color: var(--ink);
+  box-shadow: 0 28px 80px rgb(9 24 35 / 32%);
+}
+
+.reward-sale-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  background: #e3f5f2;
+  color: var(--teal);
+}
+
+.reward-sale-icon svg {
+  width: 27px;
+}
+
+.reward-sale-dialog > span {
+  display: block;
+  margin-top: 1rem;
+  color: var(--teal);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.reward-sale-dialog h2 {
+  margin: 0.3rem 0 0.6rem;
+  font-size: 1.35rem;
+  letter-spacing: -0.035em;
+}
+
+.reward-sale-dialog > p:not(.form-error) {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+.reward-sale-dialog > p strong {
+  color: var(--teal);
+}
+
+.reward-sale-warning {
+  margin-top: 1rem;
+  border: 1px solid #eadca9;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff9e7;
+  color: #75601e;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.reward-sale-warning svg {
+  flex: 0 0 auto;
+  width: 17px;
+}
+
+.reward-sale-actions {
+  display: grid;
+  grid-template-columns: 0.7fr 1.3fr;
+  gap: 0.6rem;
+  margin-top: 1.2rem;
+}
+
+.reward-sale-actions .button {
+  width: 100%;
+  min-height: 46px;
+}
+
 .point-ledger-section h2 {
   display: inline-flex;
   align-items: center;
@@ -3712,6 +3831,165 @@ textarea {
   background: #0f766e;
   color: white;
   box-shadow: 0 0 18px rgb(93 224 212 / 32%);
+}
+
+.ladder-game-layout {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+  gap: 1rem;
+}
+
+.ladder-game-layout > .ladder-machine {
+  min-width: 0;
+}
+
+.ladder-history-panel {
+  min-width: 0;
+  position: sticky;
+  top: 1rem;
+  overflow: hidden;
+  border: 1px solid #c9d8dc;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 16px 38px rgb(24 50 74 / 11%);
+}
+
+.ladder-history-panel > header {
+  min-height: 70px;
+  border-bottom: 1px solid #dce6e8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, #eef9f7, #f8fbfb);
+  padding: 0.9rem 1rem;
+}
+
+.ladder-history-panel > header > div {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #45616a;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.ladder-history-panel > header svg {
+  width: 18px;
+  color: var(--teal);
+}
+
+.ladder-history-panel > header > strong {
+  border-radius: 999px;
+  background: #0f766e;
+  color: #fff;
+  padding: 0.35rem 0.58rem;
+  font-size: 0.7rem;
+}
+
+.ladder-history-list {
+  max-height: 690px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  scrollbar-color: #9fb9bd transparent;
+  scrollbar-width: thin;
+}
+
+.ladder-history-list li {
+  min-width: 0;
+  min-height: 58px;
+  border-bottom: 1px solid #e4ecee;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.7rem 0.85rem;
+}
+
+.ladder-history-list li:last-child {
+  border-bottom: 0;
+}
+
+.ladder-history-list li:nth-child(odd) {
+  background: #f8fbfb;
+}
+
+.ladder-history-list li > span {
+  color: #71868d;
+  font-size: 0.75rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ladder-history-list li > strong {
+  min-width: 76px;
+  border: 1px solid #9fc9c4;
+  border-radius: 999px;
+  background: #e9f7f5;
+  color: #0f766e;
+  padding: 0.42rem 0.65rem;
+  font-size: 0.86rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.ladder-history-limit {
+  margin: 0;
+  border-top: 1px solid #dce6e8;
+  background: #f7fafb;
+  color: #71868d;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.65rem;
+  text-align: center;
+}
+
+.ladder-history-state {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  color: #70868d;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.ladder-history-state > svg {
+  width: 25px;
+  margin-bottom: 0.35rem;
+  color: var(--teal);
+}
+
+.ladder-history-state > strong {
+  color: #274851;
+  font-size: 0.82rem;
+}
+
+.ladder-history-state > span {
+  font-size: 0.7rem;
+}
+
+.ladder-history-state > button {
+  min-height: 38px;
+  margin-top: 0.5rem;
+  border: 1px solid #b8cbcf;
+  border-radius: 9px;
+  background: #fff;
+  color: #31545b;
+  padding: 0.45rem 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ladder-history-state .is-spinning {
+  animation: machine-spin 900ms linear infinite;
 }
 
 .ladder-picks {
@@ -4672,6 +4950,20 @@ textarea {
   }
 }
 
+@media (max-width: 1100px) {
+  .ladder-game-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ladder-history-panel {
+    position: static;
+  }
+
+  .ladder-history-list {
+    max-height: 430px;
+  }
+}
+
 @media (max-width: 620px) {
   .points-hero-grid,
   .leaderboard-layout,
@@ -4740,6 +5032,20 @@ textarea {
     min-height: 540px;
     border-radius: 18px;
     padding: 1rem;
+  }
+
+  .ladder-game-layout {
+    margin-right: 0.65rem;
+    margin-left: 0.65rem;
+  }
+
+  .ladder-game-layout > .arcade-machine {
+    margin-right: 0;
+    margin-left: 0;
+  }
+
+  .ladder-history-panel {
+    border-radius: 16px;
   }
 
   .ladder-picks,
