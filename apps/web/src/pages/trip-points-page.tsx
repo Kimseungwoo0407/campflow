@@ -26,8 +26,6 @@ import { apiRequest } from "../api/client";
 import { useAuthStore } from "../stores/auth";
 import { PointsTabs } from "./points-tabs";
 import {
-  describeResult,
-  gameName,
   point,
   time,
   type PointsDashboard,
@@ -516,6 +514,48 @@ export function TripPointsPage() {
                 </p>
               )}
             </section>
+
+            <section className="manager-control-panel manager-bag-overview">
+              <h3>
+                <PackagePlus size={18} /> 멤버별 아이템 가방
+              </h3>
+              <p>현재 사용하지 않고 보유 중인 아이템의 총개수와 종류별 수량입니다.</p>
+              <div className="manager-bag-grid" aria-label="멤버별 아이템 보유 현황">
+                {data.balanceLeaderboard.map((wallet) => {
+                  const memberInventory = data.rewardInventory.filter(
+                    (entry) => entry.userId === wallet.userId,
+                  );
+                  const totalQuantity = memberInventory.reduce(
+                    (total, entry) => total + entry.quantity,
+                    0,
+                  );
+                  return (
+                    <article
+                      className="manager-bag-card"
+                      key={wallet.userId}
+                      aria-label={`${wallet.user.nickname} 아이템 가방, 총 ${totalQuantity}개`}
+                    >
+                      <header>
+                        <strong>{wallet.user.nickname}</strong>
+                        <span>{totalQuantity}개</span>
+                      </header>
+                      {memberInventory.length === 0 ? (
+                        <p>보유 아이템 없음</p>
+                      ) : (
+                        <ul>
+                          {memberInventory.map((entry) => (
+                            <li key={entry.id}>
+                              <span>{entry.rewardItem.title}</span>
+                              <strong>{entry.quantity}개</strong>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
           </div>
         </Card>
       )}
@@ -716,27 +756,7 @@ export function TripPointsPage() {
         </Card>
       </section>
 
-      <section className="history-layout">
-        <Card>
-          <h2>공유 게임 결과</h2>
-          <div className="history-list">
-            {data.recentGames.length === 0 && (
-              <p className="empty-inline">아직 게임 결과가 없습니다.</p>
-            )}
-            {data.recentGames.map((round) => (
-              <div key={round.id}>
-                <span>
-                  {round.user.nickname} · {gameName(round.gameType)}
-                </span>
-                <strong>{describeResult(round)}</strong>
-                <b className={round.pointDelta >= 0 ? "point-positive" : "point-negative"}>
-                  {round.pointDelta >= 0 ? "+" : ""}
-                  {point(round.pointDelta)}
-                </b>
-              </div>
-            ))}
-          </div>
-        </Card>
+      <section className="history-layout history-layout--single">
         <Card>
           <h2>아이템 사용 기록</h2>
           <div className="history-list">

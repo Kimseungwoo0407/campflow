@@ -121,7 +121,6 @@ export interface PointsDashboard {
   rewards: RewardItem[];
   rewardInventory: RewardInventoryEntry[];
   recentRedemptions: RewardRedemption[];
-  recentGames: GameRound[];
   tapRewardStatus: {
     rewardedToday: number;
     remainingToday: number;

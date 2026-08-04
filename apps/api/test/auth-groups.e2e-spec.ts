@@ -525,6 +525,16 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       .expect(200);
     expect(pointsDashboard.body.data.balanceLeaderboard).toHaveLength(2);
     expect(pointsDashboard.body.data.myRole).toBe("MANAGER");
+    expect(pointsDashboard.body.data).not.toHaveProperty("recentGames");
+    expect(pointsDashboard.body.data.rewardInventory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: friend.user.id,
+          rewardItemId: oneDrinkReward.id,
+          quantity: 5,
+        }),
+      ]),
+    );
     expect(pointsDashboard.body.data.recentEntries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

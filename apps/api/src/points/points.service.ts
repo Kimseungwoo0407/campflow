@@ -221,67 +221,54 @@ export class PointsService {
     const membership = await this.access.requireMembership(userId, tripId);
     await Promise.all([this.ensureWallets(tripId), this.ensureRewards(tripId)]);
     const { start: todayStart, end: todayEnd } = this.kstDayRange();
-    const [
-      wallets,
-      recentEntries,
-      rewards,
-      recentRedemptions,
-      grantedRewards,
-      recentGames,
-      tapRewardedToday,
-    ] = await Promise.all([
-      this.prisma.pointWallet.findMany({
-        where: { tripId },
-        include: { user: { select: { id: true, nickname: true } } },
-      }),
-      this.prisma.pointLedger.findMany({
-        where: { tripId },
-        include: { user: { select: { id: true, nickname: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 30,
-      }),
-      this.prisma.rewardItem.findMany({
-        where: { tripId, active: true },
-        orderBy: [{ sortOrder: "asc" }, { cost: "asc" }],
-      }),
-      this.prisma.rewardRedemption.findMany({
-        where: { tripId, status: { not: "PENDING" } },
-        include: {
-          rewardItem: true,
-          buyer: { select: { id: true, nickname: true } },
-          target: { select: { id: true, nickname: true } },
-        },
-        orderBy: { resolvedAt: "desc" },
-        take: 30,
-      }),
-      this.prisma.rewardRedemption.findMany({
-        where: {
-          tripId,
-          status: "PENDING",
-          ...(membership.role === "MANAGER" ? {} : { buyerId: userId }),
-        },
-        include: {
-          rewardItem: true,
-          buyer: { select: { id: true, nickname: true } },
-        },
-        orderBy: { createdAt: "asc" },
-      }),
-      this.prisma.gameRound.findMany({
-        where: { tripId },
-        include: { user: { select: { id: true, nickname: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 30,
-      }),
-      this.prisma.gameRound.count({
-        where: {
-          tripId,
-          userId,
-          gameType: "TAP",
-          pointDelta: { gt: 0 },
-          createdAt: { gte: todayStart, lt: todayEnd },
-        },
-      }),
-    ]);
+    const [wallets, recentEntries, rewards, recentRedemptions, grantedRewards, tapRewardedToday] =
+      await Promise.all([
+        this.prisma.pointWallet.findMany({
+          where: { tripId },
+          include: { user: { select: { id: true, nickname: true } } },
+        }),
+        this.prisma.pointLedger.findMany({
+          where: { tripId },
+          include: { user: { select: { id: true, nickname: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 30,
+        }),
+        this.prisma.rewardItem.findMany({
+          where: { tripId, active: true },
+          orderBy: [{ sortOrder: "asc" }, { cost: "asc" }],
+        }),
+        this.prisma.rewardRedemption.findMany({
+          where: { tripId, status: { not: "PENDING" } },
+          include: {
+            rewardItem: true,
+            buyer: { select: { id: true, nickname: true } },
+            target: { select: { id: true, nickname: true } },
+          },
+          orderBy: { resolvedAt: "desc" },
+          take: 30,
+        }),
+        this.prisma.rewardRedemption.findMany({
+          where: {
+            tripId,
+            status: "PENDING",
+            ...(membership.role === "MANAGER" ? {} : { buyerId: userId }),
+          },
+          include: {
+            rewardItem: true,
+            buyer: { select: { id: true, nickname: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        }),
+        this.prisma.gameRound.count({
+          where: {
+            tripId,
+            userId,
+            gameType: "TAP",
+            pointDelta: { gt: 0 },
+            createdAt: { gte: todayStart, lt: todayEnd },
+          },
+        }),
+      ]);
     const byBalance = [...wallets].sort(
       (left, right) => right.balance - left.balance || right.earnedTotal - left.earnedTotal,
     );
@@ -327,7 +314,6 @@ export class PointsService {
       rewards,
       rewardInventory: [...inventoryByMemberAndItem.values()],
       recentRedemptions,
-      recentGames,
       tapRewardStatus: {
         rewardedToday: Math.min(tapRewardedToday, 3),
         remainingToday: Math.max(0, 3 - tapRewardedToday),
