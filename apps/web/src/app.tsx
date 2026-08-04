@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, restoreSession } from "./api/client";
@@ -34,6 +34,10 @@ import {
 } from "./pages/trip-workspace-pages";
 import { useAuthStore } from "./stores/auth";
 import { TripPointsPage } from "./pages/trip-points-page";
+
+const AfterglowFrontierPage = lazy(
+  () => import("./games/afterglow-frontier/AfterglowFrontierPage"),
+);
 
 export function App() {
   const setSession = useAuthStore((state) => state.setSession);
@@ -76,6 +80,14 @@ export function App() {
           <Route path="/trips/:tripId/expenses" element={<TripExpensesPage />} />
           <Route path="/trips/:tripId/points" element={<TripPointsPage />} />
           <Route path="/trips/:tripId/achievements" element={<TripAchievementsPage />} />
+          <Route
+            path="/trips/:tripId/games/afterglow-frontier"
+            element={
+              <Suspense fallback={<div className="page">잔광전선을 준비하는 중…</div>}>
+                <AfterglowFrontierPage />
+              </Suspense>
+            }
+          />
           <Route path="/trips/:tripId/games/:gameId" element={<TripArcadePage />} />
           <Route path="/trips/:tripId/board" element={<TripBoardPage />} />
           <Route path="/trips/:tripId/lounge" element={<TripLoungePage />} />

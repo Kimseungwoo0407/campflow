@@ -2,15 +2,22 @@ import {
   ArrowRight,
   BadgeCheck,
   CalendarCheck,
+  Castle,
+  CircleDot,
   Coins,
   Gift,
+  Gauge,
+  GitFork,
+  Hand,
   History,
   Medal,
   Megaphone,
+  MousePointerClick,
   PackagePlus,
   Settings2,
   Shield,
   Target,
+  Ticket,
   Trophy,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,39 +44,45 @@ import { WorkspaceShell } from "./trip-workspace-pages";
 const arcadeGames = [
   {
     id: "tap",
-    emoji: "👆",
+    icon: MousePointerClick,
     title: "10초 탭",
     description: "손가락으로 직접 기록을 만들고 포인트를 획득",
   },
   {
     id: "odd-even",
-    emoji: "🪜",
+    icon: GitFork,
     title: "비공개 사다리",
     description: "좌·우, 3·4줄, 홀·짝을 단일 또는 조합으로 맞히는 실제 경로 게임",
   },
   {
     id: "snail-race",
-    emoji: "🐌",
+    icon: Gauge,
     title: "달팽이 레이스",
     description: "네 마리가 실제 트랙을 달리는 4배 레이스",
   },
   {
     id: "rps-roulette",
-    emoji: "✊",
+    icon: Hand,
     title: "짱깸보 룰렛",
     description: "가위바위보 뒤 배수판이 회전하는 게임",
   },
   {
     id: "lottery",
-    emoji: "🎟️",
+    icon: Ticket,
     title: "포인트 로또",
     description: "추첨기가 돌고 티켓이 열리는 세부 확률 뽑기",
   },
   {
     id: "penalty-kick",
-    emoji: "⚽",
+    icon: CircleDot,
     title: "비공개 승부차기",
     description: "숨긴 방향을 상대 선택 뒤 경기로 확인",
+  },
+  {
+    id: "afterglow-frontier",
+    icon: Castle,
+    title: "잔광전선",
+    description: "영지를 성장시키고 다섯 방어 구역을 직접 돌파하는 비동기 공성 전략",
   },
 ] as const;
 
@@ -568,16 +581,21 @@ export function TripPointsPage() {
           </div>
         </div>
         <div className="arcade-lobby-grid">
-          {arcadeGames.map((game) => (
-            <Link key={game.id} to={`/trips/${tripId}/games/${game.id}`}>
-              <span aria-hidden="true">{game.emoji}</span>
-              <div>
-                <strong>{game.title}</strong>
-                <small>{game.description}</small>
-              </div>
-              <ArrowRight size={17} />
-            </Link>
-          ))}
+          {arcadeGames.map((game) => {
+            const GameIcon = game.icon;
+            return (
+              <Link key={game.id} to={`/trips/${tripId}/games/${game.id}`}>
+                <span aria-hidden="true">
+                  <GameIcon size={23} />
+                </span>
+                <div>
+                  <strong>{game.title}</strong>
+                  <small>{game.description}</small>
+                </div>
+                <ArrowRight size={17} />
+              </Link>
+            );
+          })}
         </div>
       </section>
 

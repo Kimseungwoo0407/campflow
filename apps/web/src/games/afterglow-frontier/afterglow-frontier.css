@@ -1,0 +1,2158 @@
+.af-shell-resources {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.af-shell-resources span {
+  min-height: 40px;
+  border: 1px solid #cfdbd6;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #fffdfa;
+  color: #254b42;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.af-shell-resources svg {
+  width: 17px;
+}
+
+.afterglow-frontier {
+  --af-bg: #0f172a;
+  --af-bg-deep: #09111f;
+  --af-surface: #151f31;
+  --af-surface-2: #1b283a;
+  --af-line: rgb(203 224 215 / 15%);
+  --af-line-strong: rgb(203 224 215 / 26%);
+  --af-text: #f8fafc;
+  --af-muted: #a9b8c2;
+  --af-primary: #4ade80;
+  --af-primary-deep: #15803d;
+  --af-accent: #f59e0b;
+  --af-danger: #f87171;
+  --af-blue: #60a5fa;
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #26364d;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 78% 0%, rgb(21 128 61 / 18%), transparent 30rem),
+    radial-gradient(circle at 0% 30%, rgb(245 158 11 / 8%), transparent 24rem), var(--af-bg);
+  color: var(--af-text);
+  box-shadow: 0 24px 70px rgb(11 24 39 / 22%);
+}
+
+.afterglow-frontier button,
+.afterglow-frontier select {
+  touch-action: manipulation;
+}
+
+.afterglow-frontier button:focus-visible,
+.afterglow-frontier select:focus-visible {
+  outline-color: var(--af-primary);
+}
+
+.af-game-tabs {
+  min-height: 64px;
+  border-bottom: 1px solid var(--af-line);
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+  padding: 0 1rem;
+  background: rgb(9 17 31 / 82%);
+}
+
+.af-game-tabs button {
+  position: relative;
+  min-width: 110px;
+  min-height: 56px;
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: var(--af-muted);
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    background-color 180ms ease;
+}
+
+.af-game-tabs button::after {
+  position: absolute;
+  right: 1rem;
+  bottom: 0;
+  left: 1rem;
+  height: 3px;
+  background: var(--af-primary);
+  content: "";
+  opacity: 0;
+  transform: scaleX(0.45);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.af-game-tabs button:hover,
+.af-game-tabs button.is-active {
+  background: rgb(74 222 128 / 7%);
+  color: var(--af-text);
+}
+
+.af-game-tabs button.is-active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.af-game-tabs svg {
+  width: 18px;
+}
+
+.af-view {
+  min-width: 0;
+  padding: clamp(1rem, 2.5vw, 2rem);
+}
+
+.af-live-notice,
+.af-battle-message {
+  min-height: 42px;
+  border: 1px solid rgb(74 222 128 / 18%);
+  display: flex;
+  align-items: center;
+  background: rgb(21 128 61 / 10%);
+  color: #c9f7d8;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.af-territory-map {
+  position: relative;
+  min-height: 390px;
+  overflow: hidden;
+  border: 1px solid var(--af-line-strong);
+  background: linear-gradient(155deg, #182940 0%, #142237 44%, #261e2a 100%);
+}
+
+.af-sky-copy {
+  position: relative;
+  z-index: 3;
+  max-width: 31rem;
+  padding: clamp(1.25rem, 3vw, 2.25rem);
+}
+
+.af-sky-copy > span,
+.af-section-heading span,
+.af-defense-header > div > span,
+.af-match-copy > span,
+.af-visible-defense header span,
+.af-scout-panel > span,
+.af-records-heading > div > span,
+.af-replay-hero > div > span {
+  color: #86efac;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.af-sky-copy h2,
+.af-defense-header h2,
+.af-match-copy h2,
+.af-records-heading h2,
+.af-replay-hero h2,
+.af-result-hero h2 {
+  margin: 0.45rem 0 0.6rem;
+  color: white;
+  font-size: clamp(1.65rem, 4vw, 2.55rem);
+  letter-spacing: -0.045em;
+}
+
+.af-sky-copy p,
+.af-defense-header p,
+.af-match-copy p,
+.af-records-heading p,
+.af-replay-hero p,
+.af-result-hero p {
+  max-width: 42rem;
+  margin-bottom: 0;
+  color: var(--af-muted);
+  line-height: 1.65;
+}
+
+.af-landscape {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.af-moon {
+  position: absolute;
+  top: 2rem;
+  right: 10%;
+  width: 82px;
+  height: 82px;
+  border: 1px solid rgb(255 237 196 / 45%);
+  border-radius: 50%;
+  background: #ffe7ae;
+  box-shadow: 0 0 56px rgb(245 158 11 / 30%);
+}
+
+.af-ridge {
+  position: absolute;
+  right: -4%;
+  bottom: 55px;
+  left: -4%;
+  height: 155px;
+  clip-path: polygon(
+    0 52%,
+    12% 32%,
+    25% 61%,
+    36% 20%,
+    52% 58%,
+    63% 31%,
+    74% 53%,
+    89% 17%,
+    100% 46%,
+    100% 100%,
+    0 100%
+  );
+  background: #142335;
+}
+
+.af-ridge--back {
+  bottom: 105px;
+  background: #22364a;
+  opacity: 0.75;
+  transform: scale(1.1);
+}
+
+.af-ridge--front {
+  background: #0c1726;
+}
+
+.af-map-building {
+  position: absolute;
+  z-index: 2;
+  bottom: 77px;
+  width: 116px;
+  min-height: 98px;
+  border: 1px solid rgb(134 239 172 / 28%);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.2rem;
+  background: rgb(9 17 31 / 80%);
+  color: #d8f8e3;
+  box-shadow: 0 12px 28px rgb(3 8 18 / 35%);
+}
+
+.af-map-building svg {
+  width: 30px;
+  height: 30px;
+  color: var(--af-primary);
+}
+
+.af-map-building b {
+  font-size: 0.78rem;
+}
+
+.af-map-building small {
+  color: var(--af-muted);
+  font-size: 0.68rem;
+}
+
+.af-map-building--generator {
+  right: 42%;
+}
+.af-map-building--vault {
+  right: 25%;
+  bottom: 85px;
+}
+.af-map-building--keep {
+  right: 7%;
+  bottom: 100px;
+  min-height: 125px;
+}
+
+.af-collection-dock {
+  position: absolute;
+  z-index: 4;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  min-height: 88px;
+  border-top: 1px solid var(--af-line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: rgb(7 15 27 / 88%);
+  padding: 1rem 1.25rem;
+}
+
+.af-collection-dock > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: 0.15rem 0.65rem;
+}
+
+.af-collection-dock span {
+  color: var(--af-muted);
+  font-size: 0.72rem;
+}
+
+.af-collection-dock strong {
+  color: #fef3c7;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.af-collection-dock small {
+  grid-column: 1 / -1;
+  color: #7f96a8;
+  font-size: 0.7rem;
+}
+
+.afterglow-frontier .button--primary,
+.af-invasion-cta {
+  background: #d97706;
+  color: #fff;
+  box-shadow: 0 10px 24px rgb(217 119 6 / 18%);
+}
+
+.afterglow-frontier .button--primary:hover:not(:disabled),
+.af-invasion-cta:hover:not(:disabled) {
+  background: #b95f05;
+}
+
+.afterglow-frontier .button--secondary {
+  border-color: var(--af-line-strong);
+  background: #1b283a;
+  color: var(--af-text);
+}
+
+.af-resource-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.af-resource-card {
+  min-width: 0;
+  min-height: 142px;
+  border: 1px solid var(--af-line);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: start;
+  gap: 0.35rem 0.6rem;
+  background: rgb(21 31 49 / 88%);
+  padding: 1rem;
+}
+
+.af-resource-card > svg {
+  grid-row: span 3;
+  width: 21px;
+  color: #8ba0ae;
+}
+
+.af-resource-card span {
+  color: var(--af-muted);
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.af-resource-card strong {
+  font-size: 1.45rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.af-resource-card small {
+  color: #8193a0;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.af-resource-card--safe {
+  border-color: rgb(74 222 128 / 26%);
+}
+
+.af-resource-card--safe > svg,
+.af-resource-card--safe strong {
+  color: #86efac;
+}
+.af-resource-card--exposed {
+  border-color: rgb(245 158 11 / 30%);
+}
+.af-resource-card--exposed > svg,
+.af-resource-card--exposed strong {
+  color: #fbbf24;
+}
+
+.af-meter {
+  grid-column: 1 / -1;
+  height: 5px;
+  margin-top: 0.45rem;
+  overflow: hidden;
+  background: #0b1422;
+}
+
+.af-meter i {
+  display: block;
+  height: 100%;
+  background: var(--af-primary);
+}
+
+.af-section-block {
+  min-width: 0;
+  border: 1px solid var(--af-line);
+  background: rgb(15 24 40 / 64%);
+  padding: 1.15rem;
+}
+
+.af-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.af-section-heading h2 {
+  margin: 0.3rem 0 0;
+  color: var(--af-text);
+  font-size: 1.1rem;
+}
+
+.af-section-heading > small {
+  color: var(--af-muted);
+  font-size: 0.72rem;
+}
+
+.af-upgrade-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.af-upgrade-card {
+  min-width: 0;
+  border: 1px solid var(--af-line);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--af-surface);
+  padding: 1rem;
+}
+
+.af-upgrade-card > svg {
+  color: #7dd3fc;
+}
+
+.af-upgrade-card > div {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.af-upgrade-card span,
+.af-upgrade-card small {
+  color: var(--af-muted);
+  font-size: 0.72rem;
+}
+
+.af-upgrade-card strong {
+  font-size: 0.9rem;
+}
+
+.af-command-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.af-command-grid > button,
+.af-records-heading > button {
+  min-height: 92px;
+  border: 1px solid var(--af-line);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  background: var(--af-surface-2);
+  color: var(--af-text);
+  padding: 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.af-command-grid > button:hover,
+.af-records-heading > button:hover {
+  border-color: rgb(74 222 128 / 48%);
+  background: #203145;
+}
+
+.af-command-grid > button > svg:first-child {
+  grid-row: span 2;
+  color: var(--af-primary);
+}
+
+.af-command-grid span {
+  color: var(--af-muted);
+  font-size: 0.72rem;
+}
+.af-command-grid strong {
+  font-size: 0.88rem;
+}
+
+/* Defense editor */
+.af-defense-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.af-budget-orb {
+  aspect-ratio: 1;
+  border: 1px solid rgb(74 222 128 / 35%);
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  background: radial-gradient(circle, rgb(21 128 61 / 25%), transparent 67%);
+}
+
+.af-budget-orb span,
+.af-budget-orb small {
+  color: var(--af-muted);
+  font-size: 0.68rem;
+}
+.af-budget-orb strong {
+  color: var(--af-primary);
+  font-size: 2.1rem;
+  font-variant-numeric: tabular-nums;
+}
+.af-budget-orb.is-over {
+  border-color: rgb(248 113 113 / 58%);
+}
+.af-budget-orb.is-over strong {
+  color: var(--af-danger);
+}
+
+.af-defense-unit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.af-defense-unit-grid > article {
+  min-width: 0;
+  border: 1px solid var(--af-line);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--af-surface);
+  padding: 0.9rem;
+}
+
+.af-defense-unit-grid > article > svg {
+  color: #a7f3d0;
+}
+.af-defense-unit-grid article > div:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+.af-defense-unit-grid span,
+.af-defense-unit-grid small {
+  color: var(--af-muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+.af-defense-unit-grid strong {
+  font-size: 0.86rem;
+}
+.af-defense-unit-grid b {
+  color: #fbbf24;
+  font-size: 0.68rem;
+}
+
+.af-stepper {
+  display: grid;
+  grid-template-columns: 36px 30px 36px;
+  align-items: center;
+}
+
+.af-stepper button,
+.af-wave-order button {
+  min-width: 36px;
+  min-height: 40px;
+  border: 1px solid var(--af-line-strong);
+  display: inline-grid;
+  place-items: center;
+  background: #111c2d;
+  color: var(--af-text);
+  cursor: pointer;
+}
+
+.af-stepper button:disabled,
+.af-wave-order button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.af-stepper svg,
+.af-wave-order svg {
+  width: 15px;
+}
+.af-stepper > strong {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.af-defense-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.af-wave-order {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.af-wave-order li {
+  border: 1px solid var(--af-line);
+  display: grid;
+  grid-template-columns: 30px 1fr 40px 40px;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--af-surface);
+  padding: 0.55rem;
+}
+
+.af-wave-order li > i {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: rgb(74 222 128 / 12%);
+  color: var(--af-primary);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.af-wave-order li > div {
+  display: grid;
+  gap: 0.15rem;
+}
+.af-wave-order small {
+  color: var(--af-muted);
+  font-size: 0.68rem;
+}
+
+.af-doctrine-panel fieldset {
+  border: 0;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.af-doctrine-panel legend,
+.af-doctrine-panel label > span {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: var(--af-muted);
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.af-doctrine-panel label {
+  display: block;
+  margin-top: 0.85rem;
+}
+.af-doctrine-panel select {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--af-line-strong);
+  background: #111c2d;
+  color: var(--af-text);
+  padding: 0.65rem;
+}
+
+.af-choice-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.af-choice-row button {
+  min-height: 44px;
+  border: 1px solid var(--af-line-strong);
+  background: #111c2d;
+  color: var(--af-muted);
+  cursor: pointer;
+}
+.af-choice-row button.is-active {
+  border-color: var(--af-primary);
+  background: rgb(21 128 61 / 18%);
+  color: var(--af-text);
+}
+
+.af-sticky-save {
+  position: sticky;
+  z-index: 20;
+  bottom: 0.75rem;
+  border: 1px solid var(--af-line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  background: rgb(9 17 31 / 94%);
+  padding: 0.8rem;
+  box-shadow: 0 14px 32px rgb(0 0 0 / 28%);
+}
+.af-sticky-save > div {
+  display: grid;
+  gap: 0.2rem;
+}
+.af-sticky-save small {
+  color: var(--af-muted);
+  font-size: 0.7rem;
+}
+
+/* Matchmaking */
+.af-match-brief {
+  min-height: 168px;
+  border: 1px solid var(--af-line-strong);
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.25rem;
+  background: linear-gradient(100deg, #17283b, #131e30);
+  padding: 1.2rem;
+}
+
+.af-match-radar {
+  position: relative;
+  width: 116px;
+  height: 116px;
+  border: 1px solid rgb(74 222 128 / 40%);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: repeating-radial-gradient(
+    circle,
+    transparent 0 20px,
+    rgb(74 222 128 / 12%) 21px 22px
+  );
+  overflow: hidden;
+}
+.af-match-radar::before,
+.af-match-radar::after {
+  position: absolute;
+  background: rgb(74 222 128 / 18%);
+  content: "";
+}
+.af-match-radar::before {
+  width: 100%;
+  height: 1px;
+}
+.af-match-radar::after {
+  width: 1px;
+  height: 100%;
+}
+.af-match-radar i {
+  position: absolute;
+  width: 50%;
+  height: 1px;
+  left: 50%;
+  background: var(--af-primary);
+  transform-origin: left;
+  animation: af-radar 4s linear infinite;
+}
+.af-match-radar span {
+  z-index: 1;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #142c24;
+  color: var(--af-primary);
+}
+
+@keyframes af-radar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.af-grade-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+.af-grade-line b,
+.af-grade-line span {
+  border: 1px solid var(--af-line);
+  padding: 0.4rem 0.55rem;
+  font-size: 0.72rem;
+}
+.af-grade-line b {
+  color: #fbbf24;
+}
+.af-grade-line span {
+  color: var(--af-muted);
+}
+
+.af-intel-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.af-intel-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.af-loot-preview,
+.af-battlefield-card,
+.af-visible-defense,
+.af-scout-panel {
+  border: 1px solid var(--af-line);
+  background: var(--af-surface);
+  padding: 1rem;
+}
+.af-loot-preview > div,
+.af-battlefield-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.af-loot-preview svg {
+  color: #fbbf24;
+}
+.af-loot-preview div > span,
+.af-battlefield-card span {
+  display: block;
+  color: var(--af-muted);
+  font-size: 0.72rem;
+}
+.af-loot-preview div > strong {
+  display: block;
+  margin-top: 0.15rem;
+  color: #fcd34d;
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+.af-loot-preview > small {
+  display: block;
+  margin-top: 0.75rem;
+  color: #8193a0;
+  font-size: 0.68rem;
+}
+.af-battlefield-card svg {
+  color: #7dd3fc;
+}
+.af-battlefield-card strong {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.84rem;
+}
+.af-visible-defense {
+  grid-column: 1 / -1;
+}
+.af-visible-defense header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.af-visible-defense h3 {
+  margin: 0.25rem 0 0;
+  font-size: 1rem;
+}
+.af-unit-intel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+.af-unit-intel-grid article {
+  min-width: 0;
+  border: 1px solid var(--af-line);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.5rem;
+  padding: 0.7rem;
+}
+.af-unit-intel-grid article svg {
+  grid-row: span 2;
+  color: #a7f3d0;
+}
+.af-unit-intel-grid article strong {
+  font-size: 0.78rem;
+}
+.af-unit-intel-grid article small {
+  color: var(--af-muted);
+  font-size: 0.66rem;
+}
+.af-scout-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.af-scout-panel > svg {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 1rem;
+  color: var(--af-primary);
+}
+.af-scout-panel h3 {
+  margin: 0.4rem 0;
+  font-size: 1.08rem;
+}
+.af-scout-panel p {
+  min-height: 72px;
+  color: var(--af-muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+.af-scout-panel .button {
+  width: 100%;
+}
+.af-cost-list {
+  width: 100%;
+  border-top: 1px solid var(--af-line);
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+}
+.af-cost-list span {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.72rem;
+}
+.af-cost-list b {
+  color: var(--af-muted);
+}
+.af-cost-list strong {
+  font-variant-numeric: tabular-nums;
+}
+.af-invasion-ready {
+  border: 1px solid rgb(245 158 11 / 24%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  background: rgb(120 53 15 / 10%);
+  padding: 1rem;
+}
+.af-invasion-ready > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.65rem;
+}
+.af-invasion-ready > div svg {
+  grid-row: span 2;
+  color: #fbbf24;
+}
+.af-invasion-ready span {
+  color: var(--af-muted);
+  font-size: 0.7rem;
+}
+.af-invasion-ready strong {
+  font-size: 0.84rem;
+}
+
+/* Battle */
+.afterglow-frontier.is-battle {
+  border-color: #394b5f;
+}
+.af-battle-view {
+  min-width: 0;
+  background: #090f1a;
+}
+.af-battle-hud {
+  min-height: 66px;
+  border-bottom: 1px solid var(--af-line);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
+  background: #0b1422;
+  padding: 0.65rem 1rem;
+}
+.af-hud-opponent {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.55rem;
+  align-items: center;
+}
+.af-hud-opponent svg {
+  grid-row: span 2;
+  color: var(--af-primary);
+}
+.af-hud-opponent span {
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+.af-hud-opponent strong {
+  color: var(--af-muted);
+  font-size: 0.68rem;
+}
+.af-hud-timer {
+  min-width: 110px;
+  display: grid;
+  justify-items: center;
+}
+.af-hud-timer span {
+  color: var(--af-muted);
+  font-size: 0.66rem;
+}
+.af-hud-timer strong {
+  color: #fef3c7;
+  font-size: 1.45rem;
+  font-variant-numeric: tabular-nums;
+}
+.af-hud-timer.is-danger strong {
+  color: var(--af-danger);
+}
+.af-retreat-button {
+  justify-self: end;
+  min-height: 44px;
+  border: 1px solid rgb(248 113 113 / 25%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: transparent;
+  color: #fecaca;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+}
+.af-retreat-button svg {
+  width: 17px;
+}
+
+.af-battlefield {
+  position: relative;
+  height: clamp(300px, 42vw, 455px);
+  min-height: 300px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--af-line-strong);
+  background: linear-gradient(#132338 0 62%, #101721 62%);
+}
+.af-battle-sky {
+  position: absolute;
+  inset: 0 0 38% 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 82% 26%, rgb(245 158 11 / 18%), transparent 23%),
+    linear-gradient(#12283d, #1c2d40);
+}
+.af-battle-sky::after {
+  position: absolute;
+  right: 7%;
+  bottom: -30px;
+  left: 16%;
+  height: 130px;
+  clip-path: polygon(
+    0 72%,
+    10% 45%,
+    18% 68%,
+    27% 20%,
+    36% 65%,
+    48% 28%,
+    60% 72%,
+    72% 40%,
+    84% 68%,
+    94% 25%,
+    100% 70%,
+    100% 100%,
+    0 100%
+  );
+  background: #172435;
+  content: "";
+}
+.af-battle-sky i {
+  position: absolute;
+  top: 15%;
+  right: 13%;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: #fde7ad;
+  box-shadow: 0 0 40px rgb(245 158 11 / 28%);
+}
+.af-ground {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 38%;
+  background:
+    repeating-linear-gradient(100deg, transparent 0 58px, rgb(255 255 255 / 3%) 59px 60px), #101721;
+}
+.af-ground::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: #33455a;
+  content: "";
+}
+.af-zone-strip {
+  position: absolute;
+  z-index: 4;
+  top: 0.55rem;
+  right: 0.6rem;
+  left: 0.6rem;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  pointer-events: none;
+}
+.af-zone-strip span {
+  border-top: 2px solid rgb(255 255 255 / 14%);
+  color: #8a9aa8;
+  padding-top: 0.25rem;
+  font-size: 0.58rem;
+  text-align: center;
+}
+.af-zone-strip span.is-reached {
+  border-color: var(--af-primary);
+  color: #d1fae5;
+}
+.af-loot-float {
+  position: absolute;
+  z-index: 7;
+  top: 2rem;
+  left: 1rem;
+  display: grid;
+  background: rgb(9 17 31 / 78%);
+  padding: 0.55rem 0.7rem;
+}
+.af-loot-float span {
+  color: var(--af-muted);
+  font-size: 0.6rem;
+}
+.af-loot-float strong {
+  color: #fbbf24;
+  font-variant-numeric: tabular-nums;
+}
+
+.af-structure,
+.af-combatant {
+  position: absolute;
+  z-index: 6;
+  bottom: 12%;
+  transform: translateX(-50%);
+  transition:
+    left 220ms linear,
+    opacity 180ms ease;
+}
+.af-structure {
+  width: 54px;
+  display: grid;
+  justify-items: center;
+}
+.af-structure > svg {
+  width: 42px;
+  height: 42px;
+  color: #c3d0d8;
+  filter: drop-shadow(0 5px 8px rgb(0 0 0 / 45%));
+}
+.af-structure > span {
+  width: 86px;
+  margin-top: 0.2rem;
+  color: #cbd5e1;
+  font-size: 0.55rem;
+  text-align: center;
+}
+.af-structure--core > svg {
+  color: #fbbf24;
+}
+.af-structure.is-destroyed {
+  opacity: 0.22;
+  filter: grayscale(1);
+}
+.af-combatant {
+  width: 32px;
+  display: grid;
+  justify-items: center;
+}
+.af-combatant > span {
+  width: 32px;
+  height: 32px;
+  border: 1px solid;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 5px 12px rgb(0 0 0 / 45%);
+}
+.af-combatant svg {
+  width: 17px;
+}
+.af-combatant > b {
+  position: absolute;
+  bottom: -17px;
+  width: 80px;
+  overflow: hidden;
+  color: #dbeafe;
+  font-size: 0.52rem;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.af-combatant--attacker > span {
+  border-color: #60a5fa;
+  background: #172554;
+  color: #bfdbfe;
+}
+.af-combatant--defender > span {
+  border-color: #f87171;
+  background: #4c1d26;
+  color: #fecaca;
+}
+.af-combatant--hero {
+  z-index: 8;
+  width: 42px;
+}
+.af-combatant--hero > span {
+  width: 42px;
+  height: 42px;
+  border-width: 2px;
+}
+.af-combatant--guardian {
+  z-index: 7;
+  width: 52px;
+}
+.af-combatant--guardian > span {
+  width: 52px;
+  height: 52px;
+  border-width: 2px;
+}
+.af-combatant--guardian svg {
+  width: 27px;
+  height: 27px;
+}
+.af-combatant.is-attacking > span {
+  box-shadow: 0 0 16px rgb(251 191 36 / 38%);
+}
+.af-world-health {
+  width: 40px;
+  height: 4px;
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  background: #050a12;
+}
+.af-world-health i {
+  display: block;
+  height: 100%;
+  background: var(--af-primary);
+  transition: width 180ms linear;
+}
+.af-combatant--defender .af-world-health i,
+.af-structure .af-world-health i {
+  background: #f87171;
+}
+.af-structure .af-world-health {
+  width: 54px;
+}
+.af-channel-progress {
+  position: absolute;
+  z-index: 12;
+  top: 18%;
+  left: 50%;
+  width: min(340px, calc(100% - 2rem));
+  border: 1px solid rgb(245 158 11 / 40%);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem;
+  background: rgb(9 17 31 / 92%);
+  padding: 0.75rem;
+  transform: translateX(-50%);
+}
+.af-channel-progress span {
+  color: #fef3c7;
+  font-size: 0.72rem;
+}
+.af-channel-progress strong {
+  color: #fbbf24;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+.af-channel-progress > div {
+  grid-column: 1 / -1;
+  height: 7px;
+  background: #111827;
+}
+.af-channel-progress i {
+  display: block;
+  height: 100%;
+  background: #f59e0b;
+}
+
+.af-battle-message {
+  min-height: 38px;
+  margin: 0;
+  border-width: 0 0 1px;
+  justify-content: center;
+  padding: 0.45rem;
+  text-align: center;
+}
+.af-command-console {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(460px, 1.1fr);
+  gap: 0.75rem;
+  background: #0b111c;
+  padding: 0.75rem;
+}
+.af-hero-console,
+.af-summon-console {
+  min-width: 0;
+  border: 1px solid var(--af-line);
+  background: #101a29;
+  padding: 0.75rem;
+}
+.af-hero-vitals {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem;
+  align-items: center;
+}
+.af-hero-vitals span {
+  color: #dbeafe;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+.af-hero-vitals strong {
+  color: var(--af-muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+.af-hero-vitals > div {
+  grid-column: 1 / -1;
+  height: 6px;
+  background: #090f18;
+}
+.af-hero-vitals i {
+  display: block;
+  height: 100%;
+  background: var(--af-blue);
+}
+.af-movement-pad {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr 1fr;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+.af-movement-pad button,
+.af-skill-row button,
+.af-summon-grid button {
+  min-height: 48px;
+  border: 1px solid var(--af-line-strong);
+  background: #162337;
+  color: var(--af-text);
+  cursor: pointer;
+}
+.af-movement-pad button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.af-movement-pad button:hover:not(:disabled),
+.af-skill-row button:hover:not(:disabled),
+.af-summon-grid button:hover:not(:disabled) {
+  border-color: rgb(74 222 128 / 50%);
+  background: #1d3044;
+}
+.af-movement-pad svg {
+  width: 17px;
+}
+.af-movement-pad .af-attack-button {
+  border-color: rgb(245 158 11 / 45%);
+  background: #78350f;
+}
+.af-movement-pad kbd {
+  border: 1px solid rgb(255 255 255 / 22%);
+  background: rgb(0 0 0 / 20%);
+  padding: 0.1rem 0.25rem;
+  font-size: 0.58rem;
+}
+.af-skill-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+.af-skill-row button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.15rem 0.35rem;
+  padding: 0.45rem;
+  font-size: 0.64rem;
+  text-align: left;
+}
+.af-skill-row button svg {
+  grid-row: span 2;
+  width: 16px;
+}
+.af-skill-row button small {
+  color: var(--af-muted);
+  font-size: 0.56rem;
+}
+.af-skill-row .af-ultimate {
+  border-color: rgb(245 158 11 / 38%);
+  color: #fde68a;
+}
+.af-skill-row button.is-active {
+  border-color: var(--af-primary);
+  background: rgb(21 128 61 / 20%);
+}
+.af-skill-row button:disabled,
+.af-summon-grid button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+.af-summon-console > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.af-summon-console > header > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+.af-summon-console header span {
+  color: var(--af-muted);
+  font-size: 0.64rem;
+}
+.af-summon-console header strong {
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+.af-command-meter {
+  height: 5px;
+  margin: 0.45rem 0 0.65rem;
+  background: #080d15;
+}
+.af-command-meter i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #15803d, #4ade80);
+  transition: width 180ms linear;
+}
+.af-summon-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+.af-summon-grid button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.12rem 0.35rem;
+  padding: 0.45rem;
+  text-align: left;
+}
+.af-summon-grid svg {
+  grid-row: span 3;
+  width: 19px;
+  color: #a7f3d0;
+}
+.af-summon-grid span {
+  overflow: hidden;
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.af-summon-grid strong {
+  color: #fef3c7;
+  font-size: 0.58rem;
+}
+.af-summon-grid small {
+  color: var(--af-muted);
+  font-size: 0.54rem;
+}
+
+/* Records + result */
+.af-records-heading {
+  min-height: 170px;
+  border-bottom: 1px solid var(--af-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+}
+.af-records-heading > button {
+  min-width: 245px;
+  min-height: 70px;
+}
+.af-record-list {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+.af-record-list > button {
+  min-height: 78px;
+  border: 1px solid var(--af-line);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--af-surface);
+  color: var(--af-text);
+  padding: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+.af-record-list > button:hover {
+  border-color: rgb(74 222 128 / 42%);
+}
+.af-record-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  background: rgb(96 165 250 / 12%);
+  color: #93c5fd;
+}
+.af-record-icon.is-attacker_win {
+  background: rgb(74 222 128 / 12%);
+  color: #86efac;
+}
+.af-record-icon.is-defender_win {
+  background: rgb(248 113 113 / 10%);
+  color: #fca5a5;
+}
+.af-record-list > button > div {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+.af-record-list small,
+.af-record-list span {
+  color: var(--af-muted);
+  font-size: 0.68rem;
+}
+.af-record-list b {
+  color: #fbbf24;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.af-empty-records {
+  min-height: 320px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+}
+.af-empty-records > svg {
+  width: 48px;
+  height: 48px;
+  color: #64748b;
+}
+.af-empty-records h3 {
+  margin: 1rem 0 0.4rem;
+}
+.af-empty-records p {
+  max-width: 30rem;
+  color: var(--af-muted);
+  line-height: 1.6;
+}
+.af-empty-records button,
+.af-text-back {
+  min-height: 44px;
+  border: 1px solid var(--af-line-strong);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--af-surface);
+  color: var(--af-text);
+  padding: 0.55rem 0.8rem;
+  cursor: pointer;
+}
+.af-text-back {
+  margin-bottom: 1rem;
+}
+.af-text-back svg {
+  width: 17px;
+}
+.af-replay-hero {
+  border: 1px solid var(--af-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #132238;
+  padding: 1.5rem;
+}
+.af-result-seal {
+  width: 112px;
+  height: 112px;
+  border: 1px solid var(--af-line-strong);
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.4rem;
+  color: #93c5fd;
+}
+.af-result-seal.is-attacker_win {
+  border-color: rgb(74 222 128 / 45%);
+  color: #86efac;
+}
+.af-result-seal strong {
+  font-size: 0.7rem;
+}
+.af-replay-summary,
+.af-result-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin: 0.75rem 0;
+}
+.af-replay-summary article,
+.af-result-stats article {
+  border: 1px solid var(--af-line);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.55rem;
+  background: var(--af-surface);
+  padding: 0.8rem;
+}
+.af-replay-summary svg,
+.af-result-stats svg {
+  grid-row: span 2;
+  color: var(--af-primary);
+}
+.af-replay-summary span,
+.af-result-stats span {
+  color: var(--af-muted);
+  font-size: 0.65rem;
+}
+.af-replay-summary strong,
+.af-result-stats strong {
+  font-size: 0.84rem;
+}
+.af-replay-timeline {
+  border: 1px solid var(--af-line);
+  background: #101a29;
+}
+.af-replay-timeline > header {
+  border-bottom: 1px solid var(--af-line);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem;
+  font-size: 0.7rem;
+}
+.af-replay-timeline header span {
+  color: var(--af-muted);
+}
+.af-replay-timeline ol {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem;
+  list-style: none;
+}
+.af-replay-timeline li {
+  display: grid;
+  grid-template-columns: 52px 10px 1fr;
+  gap: 0.75rem;
+  min-height: 54px;
+}
+.af-replay-timeline time {
+  color: var(--af-muted);
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.af-replay-timeline li > i {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--af-primary);
+}
+.af-replay-timeline li > i::after {
+  position: absolute;
+  top: 8px;
+  bottom: -46px;
+  left: 3px;
+  width: 1px;
+  background: var(--af-line-strong);
+  content: "";
+}
+.af-replay-timeline li:last-child > i::after {
+  display: none;
+}
+.af-replay-timeline li > div {
+  display: grid;
+  align-content: start;
+  gap: 0.15rem;
+}
+.af-replay-timeline li strong {
+  font-size: 0.74rem;
+}
+.af-replay-timeline li small {
+  color: var(--af-muted);
+  font-size: 0.64rem;
+}
+
+.af-result-view {
+  padding-top: 2rem;
+}
+.af-result-hero {
+  min-height: 260px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+}
+.af-result-mark {
+  width: 84px;
+  height: 84px;
+  border: 1px solid rgb(248 113 113 / 35%);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgb(127 29 29 / 15%);
+  color: #fca5a5;
+}
+.af-result-mark svg {
+  width: 36px;
+  height: 36px;
+}
+.af-result-hero.is-win .af-result-mark {
+  border-color: rgb(74 222 128 / 38%);
+  background: rgb(21 128 61 / 15%);
+  color: #86efac;
+}
+.af-result-hero > span {
+  margin-top: 1rem;
+  color: #fbbf24;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.af-result-breakdown {
+  max-width: 720px;
+  border: 1px solid var(--af-line);
+  margin: 0 auto;
+  background: var(--af-surface);
+}
+.af-result-breakdown header,
+.af-result-breakdown > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+}
+.af-result-breakdown header {
+  border-bottom: 1px solid var(--af-line);
+  background: #19283b;
+}
+.af-result-breakdown > div + div {
+  border-top: 1px solid var(--af-line);
+}
+.af-result-breakdown span {
+  color: var(--af-muted);
+  font-size: 0.74rem;
+}
+.af-result-breakdown strong {
+  font-size: 0.76rem;
+}
+.af-result-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.af-version {
+  min-height: 38px;
+  border-top: 1px solid var(--af-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  color: #708391;
+  font-size: 0.62rem;
+}
+.af-version svg {
+  width: 13px;
+}
+
+@media (max-width: 980px) {
+  .af-resource-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .af-intel-layout {
+    grid-template-columns: 1fr;
+  }
+  .af-scout-panel {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0 0.75rem;
+  }
+  .af-scout-panel > svg {
+    grid-row: span 3;
+  }
+  .af-scout-panel .button,
+  .af-cost-list {
+    grid-column: 1 / -1;
+  }
+  .af-command-console {
+    grid-template-columns: 1fr;
+  }
+  .af-map-building--generator {
+    right: 48%;
+  }
+}
+
+@media (max-width: 760px) {
+  .af-shell-resources {
+    justify-content: flex-start;
+  }
+  .afterglow-frontier {
+    border-radius: 14px;
+  }
+  .af-game-tabs {
+    min-height: 60px;
+    overflow-x: auto;
+    padding-inline: 0.35rem;
+    scrollbar-width: none;
+  }
+  .af-game-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .af-game-tabs button {
+    flex: 1 0 auto;
+    min-width: 102px;
+    padding-inline: 0.65rem;
+  }
+  .af-view {
+    padding: 0.85rem;
+  }
+  .af-territory-map {
+    min-height: 470px;
+  }
+  .af-sky-copy {
+    padding: 1rem;
+  }
+  .af-sky-copy p {
+    max-width: 20rem;
+    font-size: 0.82rem;
+  }
+  .af-moon {
+    top: 5.8rem;
+    right: 8%;
+    width: 56px;
+    height: 56px;
+  }
+  .af-map-building {
+    bottom: 94px;
+    width: 92px;
+    min-height: 82px;
+  }
+  .af-map-building--generator {
+    right: auto;
+    left: 5%;
+  }
+  .af-map-building--vault {
+    right: auto;
+    bottom: 110px;
+    left: 36%;
+  }
+  .af-map-building--keep {
+    right: 5%;
+    bottom: 122px;
+    min-height: 104px;
+  }
+  .af-map-building svg {
+    width: 24px;
+  }
+  .af-collection-dock {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 0.8rem;
+  }
+  .af-collection-dock .button {
+    width: 100%;
+  }
+  .af-upgrade-grid,
+  .af-command-grid,
+  .af-defense-unit-grid,
+  .af-defense-columns {
+    grid-template-columns: 1fr;
+  }
+  .af-defense-header {
+    grid-template-columns: 1fr;
+  }
+  .af-budget-orb {
+    width: 132px;
+    justify-self: start;
+  }
+  .af-defense-unit-grid > article {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .af-defense-unit-grid .af-stepper {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+  .af-sticky-save {
+    align-items: stretch;
+    flex-direction: column;
+    bottom: 0.35rem;
+  }
+  .af-match-brief {
+    grid-template-columns: 90px 1fr;
+    gap: 0.8rem;
+  }
+  .af-match-radar {
+    width: 84px;
+    height: 84px;
+  }
+  .af-match-brief > .button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .af-intel-main {
+    grid-template-columns: 1fr;
+  }
+  .af-visible-defense {
+    grid-column: auto;
+  }
+  .af-unit-intel-grid {
+    grid-template-columns: 1fr;
+  }
+  .af-invasion-ready {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .af-invasion-ready .button {
+    width: 100%;
+  }
+  .af-records-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .af-records-heading > button {
+    min-width: 0;
+    width: 100%;
+  }
+  .af-replay-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .af-replay-summary,
+  .af-result-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .af-result-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .af-result-actions .button {
+    width: 100%;
+  }
+  .af-battle-hud {
+    grid-template-columns: 1fr auto;
+  }
+  .af-hud-timer {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .af-retreat-button {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-content: center;
+  }
+  .af-battlefield {
+    height: 330px;
+  }
+  .af-structure > span,
+  .af-combatant > b {
+    display: none;
+  }
+  .af-structure {
+    width: 42px;
+  }
+  .af-structure > svg {
+    width: 33px;
+    height: 33px;
+  }
+  .af-structure .af-world-health {
+    width: 42px;
+  }
+  .af-skill-row,
+  .af-summon-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .af-summon-grid button {
+    min-height: 58px;
+  }
+}
+
+@media (max-width: 430px) {
+  .af-shell-resources span {
+    flex: 1;
+    justify-content: center;
+  }
+  .af-resource-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+  .af-resource-card {
+    min-height: 136px;
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+    padding: 0.75rem;
+  }
+  .af-resource-card > svg {
+    grid-row: auto;
+    width: 19px;
+  }
+  .af-resource-card strong {
+    font-size: 1.15rem;
+  }
+  .af-resource-card small {
+    font-size: 0.62rem;
+  }
+  .af-upgrade-card {
+    grid-template-columns: auto 1fr;
+  }
+  .af-upgrade-card .button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .af-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .af-match-copy h2 {
+    font-size: 1.55rem;
+  }
+  .af-grade-line {
+    display: grid;
+  }
+  .af-battlefield {
+    height: 305px;
+    min-height: 305px;
+  }
+  .af-loot-float {
+    top: 1.8rem;
+    left: 0.4rem;
+  }
+  .af-combatant {
+    width: 25px;
+  }
+  .af-combatant > span {
+    width: 27px;
+    height: 27px;
+  }
+  .af-combatant svg {
+    width: 14px;
+  }
+  .af-combatant--hero > span {
+    width: 36px;
+    height: 36px;
+  }
+  .af-combatant--guardian > span {
+    width: 42px;
+    height: 42px;
+  }
+  .af-movement-pad {
+    grid-template-columns: 1fr 1.15fr 1fr;
+  }
+  .af-movement-pad button {
+    padding-inline: 0.25rem;
+    font-size: 0.65rem;
+  }
+  .af-summon-console > header {
+    gap: 0.45rem;
+  }
+  .af-summon-console > header > div {
+    display: grid;
+    gap: 0;
+  }
+  .af-record-list > button {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .af-record-list > button > b {
+    grid-column: 2;
+  }
+  .af-record-list > button > svg {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+  .af-battlefield {
+    height: 280px;
+    min-height: 280px;
+  }
+  .af-command-console {
+    grid-template-columns: minmax(0, 0.9fr) minmax(430px, 1.1fr);
+  }
+  .af-battle-hud {
+    min-height: 56px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .afterglow-frontier *,
+  .afterglow-frontier *::before,
+  .afterglow-frontier *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

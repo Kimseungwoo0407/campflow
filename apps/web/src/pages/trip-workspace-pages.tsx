@@ -1,19 +1,26 @@
 import {
   CalendarDays,
   Car,
+  Castle,
   Check,
   ChevronDown,
   ChevronRight,
+  CircleDot,
   ClipboardCheck,
   Coins,
   Download,
   FileUp,
+  Gauge,
+  GitFork,
+  Hand,
   ListChecks,
   MapPinned,
   MessageCircle,
   MessageSquareText,
+  MousePointerClick,
   Plus,
   ShoppingBasket,
+  Ticket,
   Trash2,
   Trophy,
   Utensils,
@@ -217,14 +224,15 @@ const workspaceLinks = [
 ] as const;
 
 const arcadeDropdownLinks = [
-  { path: "points", label: "포인트 홈", emoji: "🏆" },
-  { path: "achievements", label: "업적", emoji: "🏅" },
-  { path: "games/tap", label: "10초 탭", emoji: "👆" },
-  { path: "games/odd-even", label: "홀짝 사다리", emoji: "🪜" },
-  { path: "games/snail-race", label: "달팽이 레이스", emoji: "🐌" },
-  { path: "games/rps-roulette", label: "짱깸보 룰렛", emoji: "✊" },
-  { path: "games/lottery", label: "포인트 로또", emoji: "🎟️" },
-  { path: "games/penalty-kick", label: "승부차기", emoji: "⚽" },
+  { path: "points", label: "포인트 홈", icon: Trophy },
+  { path: "achievements", label: "업적", icon: Trophy },
+  { path: "games/afterglow-frontier", label: "잔광전선", icon: Castle },
+  { path: "games/tap", label: "10초 탭", icon: MousePointerClick },
+  { path: "games/odd-even", label: "홀짝 사다리", icon: GitFork },
+  { path: "games/snail-race", label: "달팽이 레이스", icon: Gauge },
+  { path: "games/rps-roulette", label: "짱깸보 룰렛", icon: Hand },
+  { path: "games/lottery", label: "포인트 로또", icon: Ticket },
+  { path: "games/penalty-kick", label: "승부차기", icon: CircleDot },
 ] as const;
 
 function money(value: number): string {
@@ -308,16 +316,19 @@ export function WorkspaceShell({
                 <ChevronDown size={14} />
               </button>
               <div className="workspace-game-dropdown">
-                {arcadeDropdownLinks.map((game) => (
-                  <NavLink
-                    key={game.path}
-                    to={`/trips/${tripId}/${game.path}`}
-                    onClick={() => setGameMenuOpen(false)}
-                  >
-                    <span aria-hidden="true">{game.emoji}</span>
-                    {game.label}
-                  </NavLink>
-                ))}
+                {arcadeDropdownLinks.map((game) => {
+                  const GameIcon = game.icon;
+                  return (
+                    <NavLink
+                      key={game.path}
+                      to={`/trips/${tripId}/${game.path}`}
+                      onClick={() => setGameMenuOpen(false)}
+                    >
+                      <GameIcon size={17} aria-hidden="true" />
+                      {game.label}
+                    </NavLink>
+                  );
+                })}
               </div>
             </div>
           ) : (

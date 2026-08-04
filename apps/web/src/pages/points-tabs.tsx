@@ -1,4 +1,4 @@
-import { Award, Coins } from "lucide-react";
+import { Award, Castle, Coins } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 export function PointsTabs({ tripId }: { tripId: string }) {
@@ -11,6 +11,10 @@ export function PointsTabs({ tripId }: { tripId: string }) {
       <NavLink to={`/trips/${tripId}/achievements`}>
         <Award size={17} />
         업적
+      </NavLink>
+      <NavLink to={`/trips/${tripId}/games/afterglow-frontier`}>
+        <Castle size={17} />
+        잔광전선
       </NavLink>
     </nav>
   );
