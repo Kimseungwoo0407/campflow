@@ -57,10 +57,22 @@ export interface RewardItem {
 export interface RewardRedemption {
   id: string;
   cost: number;
+  status: "APPLIED" | "PENDING" | "ACCEPTED" | "REJECTED";
   createdAt: string;
+  resolvedAt: string | null;
   rewardItem: RewardItem;
   buyer: UserRef;
   target: UserRef | null;
+}
+
+export interface RewardInventoryEntry {
+  id: string;
+  userId: string;
+  rewardItemId: string;
+  quantity: number;
+  grantIds: string[];
+  user: UserRef;
+  rewardItem: RewardItem;
 }
 
 export interface GameRound {
@@ -94,6 +106,7 @@ export interface PointsRules {
   games: {
     lottery: { pricePerDraw: number; tiers: LotteryTier[] };
     rpsRoulette: {
+      outcomes: Array<{ outcome: "WIN" | "DRAW" | "LOSS"; probability: string }>;
       multipliers: Array<{ multiplier: number; probability: string }>;
     };
   };
@@ -106,6 +119,7 @@ export interface PointsDashboard {
   activityLeaderboard: PointWallet[];
   recentEntries: PointEntry[];
   rewards: RewardItem[];
+  rewardInventory: RewardInventoryEntry[];
   recentRedemptions: RewardRedemption[];
   recentGames: GameRound[];
   tapRewardStatus: {

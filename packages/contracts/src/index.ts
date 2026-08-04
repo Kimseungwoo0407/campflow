@@ -366,6 +366,33 @@ export const managerPointGrantSchema = z
   })
   .strict();
 
+export const managerPointSetSchema = z
+  .object({
+    targetUserId: z.string().trim().min(10).max(40),
+    balance: z
+      .number()
+      .int()
+      .min(0, "포인트는 0P보다 작게 설정할 수 없습니다.")
+      .max(1_000_000, "포인트는 최대 1,000,000P까지 설정할 수 있습니다."),
+    reason: z.string().trim().min(2, "설정 사유를 입력해 주세요.").max(100),
+    clientRequestId: z.string().trim().min(8).max(80),
+  })
+  .strict();
+
+export const managerRewardGrantSchema = z
+  .object({
+    targetUserId: z.string().trim().min(10).max(40),
+    rewardItemId: z.string().trim().min(10).max(40),
+    quantity: z
+      .number()
+      .int()
+      .min(1, "아이템은 최소 1개 이상 지급해야 합니다.")
+      .max(100, "아이템은 한 번에 최대 100개까지 지급할 수 있습니다."),
+    reason: z.string().trim().min(2, "지급 사유를 입력해 주세요.").max(100),
+    clientRequestId: z.string().trim().min(8).max(80),
+  })
+  .strict();
+
 export const achievementKeySchema = z.enum([
   "FIRST_CHECK_IN",
   "TRIP_HELPER_3",
@@ -492,6 +519,8 @@ export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdatePaymentInput = z.infer<typeof updatePaymentSchema>;
 export type RedeemRewardInput = z.infer<typeof redeemRewardSchema>;
 export type ManagerPointGrantInput = z.infer<typeof managerPointGrantSchema>;
+export type ManagerPointSetInput = z.infer<typeof managerPointSetSchema>;
+export type ManagerRewardGrantInput = z.infer<typeof managerRewardGrantSchema>;
 export type AchievementKey = z.infer<typeof achievementKeySchema>;
 export type OddEvenGameInput = z.infer<typeof oddEvenGameSchema>;
 export type SnailRaceGameInput = z.infer<typeof snailRaceGameSchema>;

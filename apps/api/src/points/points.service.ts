@@ -5,6 +5,8 @@ import type {
   AchievementKey,
   LotteryDrawInput,
   ManagerPointGrantInput,
+  ManagerPointSetInput,
+  ManagerRewardGrantInput,
   OddEvenGameInput,
   CreatePenaltyMatchInput,
   JoinPenaltyMatchInput,
@@ -95,6 +97,12 @@ const rpsMultipliers = [
   { multiplier: 5, weight: 150_000, probability: "15%" },
   { multiplier: 10, weight: 49_990, probability: "4.999%" },
   { multiplier: 100, weight: 10, probability: "0.001%" },
+] as const;
+
+export const rpsOutcomeProbabilities = [
+  { outcome: "WIN", weight: 150_000, probability: "15%" },
+  { outcome: "DRAW", weight: 200_000, probability: "20%" },
+  { outcome: "LOSS", weight: 650_000, probability: "65%" },
 ] as const;
 
 const ladderPayouts = [
@@ -192,6 +200,16 @@ export function payoutWithProfitMultiplier(wager: number, multiplier: number): n
   return wager + Math.floor(wager * multiplier);
 }
 
+export function expectedRpsNetMultiplier(): number {
+  const averageWinMultiplier = rpsMultipliers.reduce(
+    (total, outcome) => total + outcome.multiplier * (outcome.weight / 1_000_000),
+    0,
+  );
+  const winProbability = rpsOutcomeProbabilities[0].weight / 1_000_000;
+  const lossProbability = rpsOutcomeProbabilities[2].weight / 1_000_000;
+  return winProbability * averageWinMultiplier - lossProbability;
+}
+
 @Injectable()
 export class PointsService {
   constructor(
@@ -203,54 +221,103 @@ export class PointsService {
     const membership = await this.access.requireMembership(userId, tripId);
     await Promise.all([this.ensureWallets(tripId), this.ensureRewards(tripId)]);
     const { start: todayStart, end: todayEnd } = this.kstDayRange();
-    const [wallets, recentEntries, rewards, recentRedemptions, recentGames, tapRewardedToday] =
-      await Promise.all([
-        this.prisma.pointWallet.findMany({
-          where: { tripId },
-          include: { user: { select: { id: true, nickname: true } } },
-        }),
-        this.prisma.pointLedger.findMany({
-          where: { tripId },
-          include: { user: { select: { id: true, nickname: true } } },
-          orderBy: { createdAt: "desc" },
-          take: 30,
-        }),
-        this.prisma.rewardItem.findMany({
-          where: { tripId, active: true },
-          orderBy: [{ sortOrder: "asc" }, { cost: "asc" }],
-        }),
-        this.prisma.rewardRedemption.findMany({
-          where: { tripId },
-          include: {
-            rewardItem: true,
-            buyer: { select: { id: true, nickname: true } },
-            target: { select: { id: true, nickname: true } },
-          },
-          orderBy: { createdAt: "desc" },
-          take: 30,
-        }),
-        this.prisma.gameRound.findMany({
-          where: { tripId },
-          include: { user: { select: { id: true, nickname: true } } },
-          orderBy: { createdAt: "desc" },
-          take: 30,
-        }),
-        this.prisma.gameRound.count({
-          where: {
-            tripId,
-            userId,
-            gameType: "TAP",
-            pointDelta: { gt: 0 },
-            createdAt: { gte: todayStart, lt: todayEnd },
-          },
-        }),
-      ]);
+    const [
+      wallets,
+      recentEntries,
+      rewards,
+      recentRedemptions,
+      grantedRewards,
+      recentGames,
+      tapRewardedToday,
+    ] = await Promise.all([
+      this.prisma.pointWallet.findMany({
+        where: { tripId },
+        include: { user: { select: { id: true, nickname: true } } },
+      }),
+      this.prisma.pointLedger.findMany({
+        where: { tripId },
+        include: { user: { select: { id: true, nickname: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+      }),
+      this.prisma.rewardItem.findMany({
+        where: { tripId, active: true },
+        orderBy: [{ sortOrder: "asc" }, { cost: "asc" }],
+      }),
+      this.prisma.rewardRedemption.findMany({
+        where: { tripId, status: { not: "PENDING" } },
+        include: {
+          rewardItem: true,
+          buyer: { select: { id: true, nickname: true } },
+          target: { select: { id: true, nickname: true } },
+        },
+        orderBy: { resolvedAt: "desc" },
+        take: 30,
+      }),
+      this.prisma.rewardRedemption.findMany({
+        where: {
+          tripId,
+          status: "PENDING",
+          ...(membership.role === "MANAGER" ? {} : { buyerId: userId }),
+        },
+        include: {
+          rewardItem: true,
+          buyer: { select: { id: true, nickname: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      this.prisma.gameRound.findMany({
+        where: { tripId },
+        include: { user: { select: { id: true, nickname: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+      }),
+      this.prisma.gameRound.count({
+        where: {
+          tripId,
+          userId,
+          gameType: "TAP",
+          pointDelta: { gt: 0 },
+          createdAt: { gte: todayStart, lt: todayEnd },
+        },
+      }),
+    ]);
     const byBalance = [...wallets].sort(
       (left, right) => right.balance - left.balance || right.earnedTotal - left.earnedTotal,
     );
     const byActivity = [...wallets].sort(
       (left, right) => right.earnedTotal - left.earnedTotal || right.balance - left.balance,
     );
+    const inventoryByMemberAndItem = new Map<
+      string,
+      {
+        id: string;
+        userId: string;
+        rewardItemId: string;
+        quantity: number;
+        grantIds: string[];
+        user: (typeof grantedRewards)[number]["buyer"];
+        rewardItem: (typeof grantedRewards)[number]["rewardItem"];
+      }
+    >();
+    for (const grant of grantedRewards) {
+      const key = `${grant.buyerId}:${grant.rewardItemId}`;
+      const current = inventoryByMemberAndItem.get(key);
+      if (current) {
+        current.quantity += 1;
+        current.grantIds.push(grant.id);
+      } else {
+        inventoryByMemberAndItem.set(key, {
+          id: key,
+          userId: grant.buyerId,
+          rewardItemId: grant.rewardItemId,
+          quantity: 1,
+          grantIds: [grant.id],
+          user: grant.buyer,
+          rewardItem: grant.rewardItem,
+        });
+      }
+    }
     return {
       myWallet: wallets.find((wallet) => wallet.userId === userId),
       myRole: membership.role,
@@ -258,6 +325,7 @@ export class PointsService {
       activityLeaderboard: byActivity,
       recentEntries,
       rewards,
+      rewardInventory: [...inventoryByMemberAndItem.values()],
       recentRedemptions,
       recentGames,
       tapRewardStatus: {
@@ -285,6 +353,7 @@ export class PointsService {
           draw: "원금 반환",
           loss: "0배",
           win: "배수만큼 순이익 지급 후 판돈 별도 반환",
+          outcomes: rpsOutcomeProbabilities,
           multipliers: rpsMultipliers,
         },
         lottery: { pricePerDraw: 10, tiers: lotteryTiers },
@@ -439,6 +508,323 @@ export class PointsService {
     }
   }
 
+  async setPointBalance(managerId: string, tripId: string, input: ManagerPointSetInput) {
+    await this.access.requireManager(managerId, tripId);
+    await this.access.requireMembership(input.targetUserId, tripId);
+    const [manager, target] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: managerId },
+        select: { id: true, nickname: true },
+      }),
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: input.targetUserId },
+        select: { id: true, nickname: true },
+      }),
+    ]);
+    const sourceKey = `manager-set:${managerId}:${input.clientRequestId}`;
+    const findExisting = () =>
+      this.prisma.pointLedger.findUnique({
+        where: {
+          tripId_userId_sourceKey: {
+            tripId,
+            userId: input.targetUserId,
+            sourceKey,
+          },
+        },
+        include: { user: { select: { id: true, nickname: true } } },
+      });
+    const existing = await findExisting();
+    if (existing) return { entry: existing, duplicate: true };
+
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        const current = await this.walletWithTransaction(transaction, tripId, input.targetUserId);
+        const delta = input.balance - current.balance;
+        await this.changeBalance(
+          transaction,
+          tripId,
+          input.targetUserId,
+          delta,
+          "ADJUST",
+          `${manager.nickname} 관리자 잔액 설정 · ${input.reason}`,
+          sourceKey,
+          {
+            category: "MANAGER_BALANCE_SET",
+            managerId,
+            managerNickname: manager.nickname,
+            targetNickname: target.nickname,
+            previousBalance: current.balance,
+            balance: input.balance,
+            reason: input.reason,
+          },
+        );
+        const entry = await transaction.pointLedger.findUniqueOrThrow({
+          where: {
+            tripId_userId_sourceKey: {
+              tripId,
+              userId: input.targetUserId,
+              sourceKey,
+            },
+          },
+          include: { user: { select: { id: true, nickname: true } } },
+        });
+        await transaction.chatMessage.create({
+          data: {
+            id: newId(),
+            tripId,
+            authorId: managerId,
+            body: `🛠️ ${manager.nickname} 관리자가 ${target.nickname}님의 포인트를 ${current.balance.toLocaleString("ko-KR")}P에서 ${input.balance.toLocaleString("ko-KR")}P로 설정했습니다. 사유: ${input.reason}`,
+            clientMessageId: `point-set-${entry.id}`,
+          },
+        });
+        await transaction.auditLog.create({
+          data: {
+            id: newId(),
+            actorId: managerId,
+            action: "points.manager_set_balance",
+            targetType: "PointWallet",
+            targetId: input.targetUserId,
+            metadataSafe: {
+              tripId,
+              previousBalance: current.balance,
+              balance: input.balance,
+              reason: input.reason,
+              pointLedgerId: entry.id,
+            },
+          },
+        });
+        return { entry, duplicate: false };
+      });
+    } catch (error: unknown) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const duplicate = await findExisting();
+        if (duplicate) return { entry: duplicate, duplicate: true };
+      }
+      throw error;
+    }
+  }
+
+  async grantReward(managerId: string, tripId: string, input: ManagerRewardGrantInput) {
+    await this.access.requireManager(managerId, tripId);
+    await this.access.requireMembership(input.targetUserId, tripId);
+    await this.ensureRewards(tripId);
+    const [manager, target, reward] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: managerId },
+        select: { id: true, nickname: true },
+      }),
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: input.targetUserId },
+        select: { id: true, nickname: true },
+      }),
+      this.prisma.rewardItem.findFirst({
+        where: { id: input.rewardItemId, tripId, active: true },
+      }),
+    ]);
+    if (!reward) {
+      throw new NotFoundException({
+        code: "REWARD_NOT_FOUND",
+        message: "포인트 아이템을 찾을 수 없습니다.",
+      });
+    }
+    const sourcePrefix = `manager-reward:${managerId}:${input.clientRequestId}`;
+    const findExisting = () =>
+      this.prisma.rewardRedemption.findMany({
+        where: { tripId, sourceKey: { startsWith: `${sourcePrefix}:` } },
+        include: {
+          rewardItem: true,
+          buyer: { select: { id: true, nickname: true } },
+          target: { select: { id: true, nickname: true } },
+        },
+        orderBy: { sourceKey: "asc" },
+      });
+    const existing = await findExisting();
+    if (existing.length > 0) {
+      return { grants: existing, quantity: existing.length, duplicate: true };
+    }
+
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        await transaction.rewardRedemption.createMany({
+          data: Array.from({ length: input.quantity }, (_, index) => ({
+            id: newId(),
+            tripId,
+            rewardItemId: reward.id,
+            buyerId: input.targetUserId,
+            sourceKey: `${sourcePrefix}:${index + 1}`,
+            cost: 0,
+            status: "PENDING" as const,
+            note: input.reason,
+            outcome: {
+              category: "MANAGER_REWARD_GRANT",
+              managerId,
+              managerNickname: manager.nickname,
+              reason: input.reason,
+            },
+          })),
+        });
+        const grants = await transaction.rewardRedemption.findMany({
+          where: { tripId, sourceKey: { startsWith: `${sourcePrefix}:` } },
+          include: {
+            rewardItem: true,
+            buyer: { select: { id: true, nickname: true } },
+            target: { select: { id: true, nickname: true } },
+          },
+          orderBy: { sourceKey: "asc" },
+        });
+        await transaction.chatMessage.create({
+          data: {
+            id: newId(),
+            tripId,
+            authorId: managerId,
+            body: `🎁 ${manager.nickname} 관리자가 ${target.nickname}님에게 ‘${reward.title}’ ${input.quantity.toLocaleString("ko-KR")}개를 지급했습니다. 사유: ${input.reason}`,
+            clientMessageId: `reward-grant-${grants[0]!.id}`,
+          },
+        });
+        await transaction.auditLog.create({
+          data: {
+            id: newId(),
+            actorId: managerId,
+            action: "rewards.manager_grant",
+            targetType: "RewardRedemption",
+            targetId: input.targetUserId,
+            metadataSafe: {
+              tripId,
+              rewardItemId: reward.id,
+              rewardTitle: reward.title,
+              quantity: input.quantity,
+              reason: input.reason,
+              grantIds: grants.map((grant) => grant.id),
+            },
+          },
+        });
+        return { grants, quantity: grants.length, duplicate: false };
+      });
+    } catch (error: unknown) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const duplicate = await findExisting();
+        if (duplicate.length > 0) {
+          return { grants: duplicate, quantity: duplicate.length, duplicate: true };
+        }
+      }
+      throw error;
+    }
+  }
+
+  async useGrantedReward(
+    userId: string,
+    tripId: string,
+    grantId: string,
+    input: RedeemRewardInput,
+  ) {
+    await this.access.requireMembership(userId, tripId);
+    const grant = await this.prisma.rewardRedemption.findFirst({
+      where: { id: grantId, tripId, buyerId: userId },
+      include: {
+        rewardItem: true,
+        buyer: { select: { id: true, nickname: true } },
+        target: { select: { id: true, nickname: true } },
+      },
+    });
+    if (!grant) {
+      throw new NotFoundException({
+        code: "GRANTED_REWARD_NOT_FOUND",
+        message: "지급받은 아이템을 찾을 수 없습니다.",
+      });
+    }
+    if (grant.status === "APPLIED") return grant;
+    if (grant.status !== "PENDING") {
+      throw new ConflictException({
+        code: "GRANTED_REWARD_UNAVAILABLE",
+        message: "사용할 수 없는 아이템입니다.",
+      });
+    }
+    const effect = grant.rewardItem.effect as {
+      action?: string;
+      points?: number;
+      targetRequired?: boolean;
+    };
+    if (effect.targetRequired && !input.targetUserId) {
+      throw new ConflictException({
+        code: "REWARD_TARGET_REQUIRED",
+        message: "이 아이템을 사용할 친구를 선택해 주세요.",
+      });
+    }
+    if (input.targetUserId) {
+      await this.access.requireMembership(input.targetUserId, tripId);
+    }
+
+    return this.prisma.$transaction(async (transaction) => {
+      const claimed = await transaction.rewardRedemption.updateMany({
+        where: { id: grant.id, status: "PENDING" },
+        data: { status: "APPLIED", resolvedAt: new Date() },
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException({
+          code: "GRANTED_REWARD_ALREADY_USED",
+          message: "이미 사용한 아이템입니다.",
+        });
+      }
+      let targetLoss = 0;
+      if (
+        grant.rewardItem.type === "TARGET_PENALTY" &&
+        input.targetUserId &&
+        typeof effect.points === "number"
+      ) {
+        const targetWallet = await this.walletWithTransaction(
+          transaction,
+          tripId,
+          input.targetUserId,
+        );
+        targetLoss = Math.min(effect.points, targetWallet.balance);
+        if (targetLoss > 0) {
+          await this.changeBalance(
+            transaction,
+            tripId,
+            input.targetUserId,
+            -targetLoss,
+            "LOSS",
+            `${grant.rewardItem.title} 피격`,
+            `reward:${grant.id}:target`,
+            { buyerId: userId, grantedReward: true },
+          );
+        }
+      }
+      const previousOutcome =
+        typeof grant.outcome === "object" && grant.outcome !== null && !Array.isArray(grant.outcome)
+          ? grant.outcome
+          : {};
+      const redemption = await transaction.rewardRedemption.update({
+        where: { id: grant.id },
+        data: {
+          ...(input.targetUserId === undefined ? {} : { targetId: input.targetUserId }),
+          ...(input.note === undefined ? {} : { note: input.note }),
+          outcome: {
+            ...previousOutcome,
+            action: effect.action ?? "PRIVILEGE",
+            targetLoss,
+            usedFromGrant: true,
+          },
+        },
+        include: {
+          rewardItem: true,
+          buyer: { select: { id: true, nickname: true } },
+          target: { select: { id: true, nickname: true } },
+        },
+      });
+      await transaction.chatMessage.create({
+        data: {
+          id: newId(),
+          tripId,
+          authorId: userId,
+          body: `${grant.buyer.nickname}님이 지급받은 아이템 ‘${grant.rewardItem.title}’을 사용했습니다.`,
+          clientMessageId: `reward-use-${grant.id}`,
+        },
+      });
+      return redemption;
+    });
+  }
+
   async achievements(userId: string, tripId: string) {
     await this.access.requireMembership(userId, tripId);
     const [pointEntries, gameRounds, rewardUses] = await Promise.all([
@@ -451,7 +837,9 @@ export class PointsService {
         select: { gameType: true, score: true, result: true, createdAt: true },
         orderBy: { createdAt: "asc" },
       }),
-      this.prisma.rewardRedemption.count({ where: { tripId, buyerId: userId } }),
+      this.prisma.rewardRedemption.count({
+        where: { tripId, buyerId: userId, status: "APPLIED" },
+      }),
     ]);
     const sourceKeys = pointEntries
       .map((entry) => entry.sourceKey)
@@ -606,20 +994,7 @@ export class PointsService {
         message: "포인트 아이템을 찾을 수 없습니다.",
       });
     }
-    const effect = reward.effect as {
-      action?: string;
-      points?: number;
-      targetRequired?: boolean;
-    };
-    if (effect.targetRequired && !input.targetUserId) {
-      throw new ConflictException({
-        code: "REWARD_TARGET_REQUIRED",
-        message: "이 아이템을 사용할 친구를 선택해 주세요.",
-      });
-    }
-    if (input.targetUserId) {
-      await this.access.requireMembership(input.targetUserId, tripId);
-    }
+    const effect = reward.effect as { action?: string };
     const redemptionId = newId();
     const buyer = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -632,47 +1007,20 @@ export class PointsService {
         userId,
         -reward.cost,
         "SPEND",
-        `${reward.title} 사용`,
+        `${reward.title} 구매`,
         `reward:${redemptionId}:cost`,
         { rewardItemId: reward.id },
       );
-      let targetLoss = 0;
-      if (
-        reward.type === "TARGET_PENALTY" &&
-        input.targetUserId &&
-        typeof effect.points === "number"
-      ) {
-        const targetWallet = await this.walletWithTransaction(
-          transaction,
-          tripId,
-          input.targetUserId,
-        );
-        targetLoss = Math.min(effect.points, targetWallet.balance);
-        if (targetLoss > 0) {
-          await this.changeBalance(
-            transaction,
-            tripId,
-            input.targetUserId,
-            -targetLoss,
-            "LOSS",
-            `${reward.title} 피격`,
-            `reward:${redemptionId}:target`,
-            { buyerId: userId },
-          );
-        }
-      }
       const redemption = await transaction.rewardRedemption.create({
         data: {
           id: redemptionId,
           tripId,
           rewardItemId: reward.id,
           buyerId: userId,
-          ...(input.targetUserId === undefined ? {} : { targetId: input.targetUserId }),
           cost: reward.cost,
-          status: "APPLIED",
+          status: "PENDING",
           ...(input.note === undefined ? {} : { note: input.note }),
-          outcome: { action: effect.action ?? "PRIVILEGE", targetLoss },
-          resolvedAt: new Date(),
+          outcome: { action: effect.action ?? "PRIVILEGE", category: "POINT_PURCHASE" },
         },
         include: {
           rewardItem: true,
@@ -685,7 +1033,7 @@ export class PointsService {
           id: newId(),
           tripId,
           authorId: userId,
-          body: `${buyer.nickname}님이 포인트 아이템 ‘${reward.title}’을 사용했습니다.`,
+          body: `${buyer.nickname}님이 포인트 아이템 ‘${reward.title}’을 구매해 보유함에 넣었습니다.`,
           clientMessageId: `reward-${redemptionId}`,
         },
       });
@@ -760,8 +1108,13 @@ export class PointsService {
     await this.access.requireMembership(userId, tripId);
     const existing = await this.existingRound(tripId, userId, input.clientRoundId);
     if (existing) return existing;
-    const choices = ["ROCK", "PAPER", "SCISSORS"] as const;
-    const machine = choices[randomInt(0, choices.length)]!;
+    const desiredOutcome = this.weighted(rpsOutcomeProbabilities, 1_000_000).outcome;
+    const machineByOutcome = {
+      ROCK: { WIN: "SCISSORS", DRAW: "ROCK", LOSS: "PAPER" },
+      PAPER: { WIN: "ROCK", DRAW: "PAPER", LOSS: "SCISSORS" },
+      SCISSORS: { WIN: "PAPER", DRAW: "SCISSORS", LOSS: "ROCK" },
+    } as const;
+    const machine = machineByOutcome[input.choice][desiredOutcome];
     const draw = machine === input.choice;
     const won =
       (input.choice === "ROCK" && machine === "SCISSORS") ||
@@ -785,6 +1138,7 @@ export class PointsService {
         machine,
         outcome: won ? "WIN" : draw ? "DRAW" : "LOSS",
         multiplier,
+        disclosedOdds: true,
       },
     );
   }
@@ -1257,7 +1611,7 @@ export class PointsService {
         where: { tripId, userId, balance: { gte: Math.abs(delta) } },
         data: {
           balance: { increment: delta },
-          spentTotal: { increment: Math.abs(delta) },
+          ...(kind === "ADJUST" ? {} : { spentTotal: { increment: Math.abs(delta) } }),
         },
       });
       if (changed.count === 0) {

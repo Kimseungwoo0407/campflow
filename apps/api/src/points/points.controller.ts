@@ -5,6 +5,8 @@ import {
   achievementKeySchema,
   lotteryDrawSchema,
   managerPointGrantSchema,
+  managerPointSetSchema,
+  managerRewardGrantSchema,
   createPenaltyMatchSchema,
   joinPenaltyMatchSchema,
   oddEvenGameSchema,
@@ -15,6 +17,8 @@ import {
   type AchievementKey,
   type LotteryDrawInput,
   type ManagerPointGrantInput,
+  type ManagerPointSetInput,
+  type ManagerRewardGrantInput,
   type CreatePenaltyMatchInput,
   type JoinPenaltyMatchInput,
   type OddEvenGameInput,
@@ -57,6 +61,36 @@ export class PointsController {
     @Body(new ZodValidationPipe(managerPointGrantSchema)) input: ManagerPointGrantInput,
   ) {
     return this.points.grantPoints(user.id, tripId, input);
+  }
+
+  @Post("trips/:tripId/points/set-balance")
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  setPointBalance(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("tripId") tripId: string,
+    @Body(new ZodValidationPipe(managerPointSetSchema)) input: ManagerPointSetInput,
+  ) {
+    return this.points.setPointBalance(user.id, tripId, input);
+  }
+
+  @Post("trips/:tripId/rewards/grants")
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  grantReward(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("tripId") tripId: string,
+    @Body(new ZodValidationPipe(managerRewardGrantSchema)) input: ManagerRewardGrantInput,
+  ) {
+    return this.points.grantReward(user.id, tripId, input);
+  }
+
+  @Post("trips/:tripId/rewards/inventory/:grantId/use")
+  useGrantedReward(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("tripId") tripId: string,
+    @Param("grantId") grantId: string,
+    @Body(new ZodValidationPipe(redeemRewardSchema)) input: RedeemRewardInput,
+  ) {
+    return this.points.useGrantedReward(user.id, tripId, grantId, input);
   }
 
   @Get("trips/:tripId/achievements")

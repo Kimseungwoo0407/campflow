@@ -760,6 +760,7 @@ model RewardRedemption {
   rewardItemId String
   buyerId      String
   targetId     String?
+  sourceKey    String?
   cost         Int
   status       RewardRedemptionStatus @default(APPLIED)
   note         String?
@@ -771,6 +772,7 @@ model RewardRedemption {
   buyer        User                   @relation("RewardBuyer", fields: [buyerId], references: [id])
   target       User?                  @relation("RewardTarget", fields: [targetId], references: [id], onDelete: SetNull)
 
+  @@unique([tripId, sourceKey])
   @@index([tripId, createdAt])
   @@index([targetId, status])
 }

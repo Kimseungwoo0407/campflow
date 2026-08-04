@@ -2851,7 +2851,7 @@ textarea {
 
 .manager-point-grant-form {
   display: grid;
-  grid-template-columns: minmax(130px, 0.8fr) minmax(120px, 0.55fr) minmax(210px, 1.4fr) auto;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   align-items: end;
   gap: 0.65rem;
   margin-top: 1rem;
@@ -2867,6 +2867,45 @@ textarea {
 
 .manager-point-grant-card .form-notice {
   margin: 0.8rem 0 0;
+}
+
+.manager-control-grid {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+
+.manager-control-panel {
+  border: 1px solid rgb(172 134 28 / 24%);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 58%);
+  padding: 1rem;
+}
+
+.manager-control-panel h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.25rem;
+  color: #4e3b08;
+}
+
+.manager-control-panel > p {
+  margin: 0;
+  color: #6d5b22;
+  font-size: 0.8rem;
+}
+
+.manager-current-inventory {
+  display: block;
+  margin-top: 0.7rem;
+  color: #6d5b22;
+  font-weight: 800;
+}
+
+.granted-reward-card {
+  border-color: #d7b64f;
+  background: linear-gradient(150deg, #fffef8, #fff7db);
 }
 
 .point-ledger-section h2 {

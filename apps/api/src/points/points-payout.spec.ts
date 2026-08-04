@@ -1,4 +1,9 @@
-import { maximumConsecutiveWins, payoutWithProfitMultiplier } from "./points.service";
+import {
+  expectedRpsNetMultiplier,
+  maximumConsecutiveWins,
+  payoutWithProfitMultiplier,
+  rpsOutcomeProbabilities,
+} from "./points.service";
 
 describe("포인트 게임 순이익 배수", () => {
   it("짱깸보 10P의 5배 당첨은 판돈 반환과 별도로 50P 순이익을 준다", () => {
@@ -15,6 +20,18 @@ describe("포인트 게임 순이익 배수", () => {
 
     expect(credited).toBe(145);
     expect(credited - wager).toBe(95);
+  });
+
+  it("짱깸보는 패배 확률이 가장 높고 장기 기대값이 음수다", () => {
+    expect(rpsOutcomeProbabilities).toEqual([
+      expect.objectContaining({ outcome: "WIN", probability: "15%" }),
+      expect.objectContaining({ outcome: "DRAW", probability: "20%" }),
+      expect.objectContaining({ outcome: "LOSS", probability: "65%" }),
+    ]);
+    expect(rpsOutcomeProbabilities.reduce((total, outcome) => total + outcome.weight, 0)).toBe(
+      1_000_000,
+    );
+    expect(expectedRpsNetMultiplier()).toBeLessThan(0);
   });
 });
 

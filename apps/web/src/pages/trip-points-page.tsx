@@ -7,6 +7,8 @@ import {
   History,
   Medal,
   Megaphone,
+  PackagePlus,
+  Settings2,
   Shield,
   Target,
   Trophy,
@@ -15,7 +17,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button, Card, Spinner } from "@campflow/ui";
-import { managerPointGrantSchema } from "@campflow/contracts";
+import {
+  managerPointGrantSchema,
+  managerPointSetSchema,
+  managerRewardGrantSchema,
+} from "@campflow/contracts";
 import { apiRequest } from "../api/client";
 import { useAuthStore } from "../stores/auth";
 import { PointsTabs } from "./points-tabs";
@@ -25,6 +31,7 @@ import {
   point,
   time,
   type PointsDashboard,
+  type RewardInventoryEntry,
   type RewardItem,
 } from "./points-shared";
 import { WorkspaceShell } from "./trip-workspace-pages";
@@ -68,6 +75,16 @@ const arcadeGames = [
   },
 ] as const;
 
+function rewardRequiresTarget(reward: RewardItem): boolean {
+  return (
+    reward.type === "TARGET_PENALTY" ||
+    (typeof reward.effect === "object" &&
+      reward.effect !== null &&
+      "targetRequired" in reward.effect &&
+      reward.effect.targetRequired === true)
+  );
+}
+
 export function TripPointsPage() {
   const { tripId = "" } = useParams();
   const currentUser = useAuthStore((state) => state.user);
@@ -77,6 +94,15 @@ export function TripPointsPage() {
   const [grantAmount, setGrantAmount] = useState("10");
   const [grantReason, setGrantReason] = useState("");
   const [grantRequestId, setGrantRequestId] = useState(() => crypto.randomUUID());
+  const [balanceTargetUserId, setBalanceTargetUserId] = useState("");
+  const [setBalance, setSetBalance] = useState("0");
+  const [setReason, setSetReason] = useState("");
+  const [setRequestId, setSetRequestId] = useState(() => crypto.randomUUID());
+  const [rewardGrantTargetUserId, setRewardGrantTargetUserId] = useState("");
+  const [rewardGrantItemId, setRewardGrantItemId] = useState("");
+  const [rewardGrantQuantity, setRewardGrantQuantity] = useState("1");
+  const [rewardGrantReason, setRewardGrantReason] = useState("");
+  const [rewardGrantRequestId, setRewardGrantRequestId] = useState(() => crypto.randomUUID());
   const dashboard = useQuery({
     queryKey: ["points", tripId],
     queryFn: () => apiRequest<PointsDashboard>(`trips/${tripId}/points`),
@@ -97,13 +123,16 @@ export function TripPointsPage() {
     mutationFn: (reward: RewardItem) =>
       apiRequest(`trips/${tripId}/rewards/${reward.id}/redeem`, {
         method: "POST",
+        body: JSON.stringify({}),
+      }),
+    onSuccess: refresh,
+  });
+  const useGrantedReward = useMutation({
+    mutationFn: (entry: RewardInventoryEntry) =>
+      apiRequest(`trips/${tripId}/rewards/inventory/${entry.grantIds[0]}/use`, {
+        method: "POST",
         body: JSON.stringify({
-          ...(reward.type === "TARGET_PENALTY" ||
-          (typeof reward.effect === "object" &&
-            reward.effect !== null &&
-            "targetRequired" in reward.effect)
-            ? { targetUserId }
-            : {}),
+          ...(rewardRequiresTarget(entry.rewardItem) ? { targetUserId } : {}),
         }),
       }),
     onSuccess: refresh,
@@ -126,6 +155,46 @@ export function TripPointsPage() {
       setGrantAmount("10");
       setGrantReason("");
       setGrantRequestId(crypto.randomUUID());
+      refresh();
+    },
+  });
+  const managerSetBalance = useMutation({
+    mutationFn: () => {
+      const parsed = managerPointSetSchema.parse({
+        targetUserId: balanceTargetUserId,
+        balance: Number(setBalance),
+        reason: setReason,
+        clientRequestId: setRequestId,
+      });
+      return apiRequest(`trips/${tripId}/points/set-balance`, {
+        method: "POST",
+        body: JSON.stringify(parsed),
+      });
+    },
+    onSuccess: () => {
+      setSetReason("");
+      setSetRequestId(crypto.randomUUID());
+      refresh();
+    },
+  });
+  const managerGrantReward = useMutation({
+    mutationFn: () => {
+      const parsed = managerRewardGrantSchema.parse({
+        targetUserId: rewardGrantTargetUserId,
+        rewardItemId: rewardGrantItemId,
+        quantity: Number(rewardGrantQuantity),
+        reason: rewardGrantReason,
+        clientRequestId: rewardGrantRequestId,
+      });
+      return apiRequest(`trips/${tripId}/rewards/grants`, {
+        method: "POST",
+        body: JSON.stringify(parsed),
+      });
+    },
+    onSuccess: () => {
+      setRewardGrantQuantity("1");
+      setRewardGrantReason("");
+      setRewardGrantRequestId(crypto.randomUUID());
       refresh();
     },
   });
@@ -154,7 +223,16 @@ export function TripPointsPage() {
   }
 
   const data = dashboard.data;
-  const error = checkIn.error ?? redeem.error ?? managerGrant.error;
+  const myRewardInventory = data.rewardInventory.filter(
+    (entry) => entry.userId === currentUser?.id,
+  );
+  const error =
+    checkIn.error ??
+    redeem.error ??
+    useGrantedReward.error ??
+    managerGrant.error ??
+    managerSetBalance.error ??
+    managerGrantReward.error;
 
   return (
     <WorkspaceShell
@@ -199,75 +277,246 @@ export function TripPointsPage() {
       {data.myRole === "MANAGER" && (
         <Card className="manager-point-grant-card">
           <div className="manager-point-grant-copy">
-            <Megaphone />
+            <Settings2 />
             <div>
               <span className="eyebrow">관리자 전용</span>
-              <h2>멤버에게 포인트 지급</h2>
+              <h2>포인트·아이템 관리</h2>
               <p>
-                본인에게는 지급할 수 없습니다. 지급자·대상·금액·사유는 전체 포인트 내역과 단체
-                라운지에 즉시 공개됩니다.
+                승우 계정에서 모든 멤버의 잔액을 정확한 값으로 설정하고, 포인트 추가 지급과 상점
+                아이템 지급을 관리할 수 있습니다. 변경 내용은 전체 내역과 단체 라운지에 기록됩니다.
               </p>
             </div>
           </div>
-          <form
-            className="manager-point-grant-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              managerGrant.mutate();
-            }}
-          >
-            <label>
-              <span>받을 멤버</span>
-              <select
-                className="input"
-                value={grantTargetUserId}
-                onChange={(event) => setGrantTargetUserId(event.target.value)}
-                required
+
+          <div className="manager-control-grid">
+            <section className="manager-control-panel">
+              <h3>
+                <Settings2 size={18} /> 잔액 직접 설정
+              </h3>
+              <p>현재 값과 상관없이 선택한 멤버의 최종 보유 포인트를 지정합니다.</p>
+              <form
+                className="manager-point-grant-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  managerSetBalance.mutate();
+                }}
               >
-                <option value="">선택</option>
-                {data.balanceLeaderboard
-                  .filter((wallet) => wallet.userId !== currentUser?.id)
-                  .map((wallet) => (
-                    <option key={wallet.userId} value={wallet.userId}>
-                      {wallet.user.nickname}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label>
-              <span>지급 포인트</span>
-              <input
-                className="input"
-                type="number"
-                min={10}
-                max={10_000}
-                step={10}
-                value={grantAmount}
-                onChange={(event) => setGrantAmount(event.target.value)}
-                required
-              />
-            </label>
-            <label>
-              <span>공개 지급 사유</span>
-              <input
-                className="input"
-                value={grantReason}
-                onChange={(event) => setGrantReason(event.target.value)}
-                minLength={2}
-                maxLength={100}
-                placeholder="예: 장보기 담당 수고비"
-                required
-              />
-            </label>
-            <Button type="submit" disabled={managerGrant.isPending}>
-              {managerGrant.isPending ? "공개 지급 중…" : "전체 공개 후 지급"}
-            </Button>
-          </form>
-          {managerGrant.isSuccess && (
-            <p className="form-notice" role="status">
-              포인트를 지급하고 전체 공개 내역과 단체 라운지에 기록했습니다.
-            </p>
-          )}
+                <label>
+                  <span>대상 멤버</span>
+                  <select
+                    className="input"
+                    value={balanceTargetUserId}
+                    onChange={(event) => {
+                      const nextUserId = event.target.value;
+                      setBalanceTargetUserId(nextUserId);
+                      const wallet = data.balanceLeaderboard.find(
+                        (entry) => entry.userId === nextUserId,
+                      );
+                      if (wallet) setSetBalance(String(wallet.balance));
+                    }}
+                    required
+                  >
+                    <option value="">선택</option>
+                    {data.balanceLeaderboard.map((wallet) => (
+                      <option key={wallet.userId} value={wallet.userId}>
+                        {wallet.user.nickname} · 현재 {point(wallet.balance)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>최종 보유 포인트</span>
+                  <input
+                    className="input"
+                    type="number"
+                    min={0}
+                    max={1_000_000}
+                    step={1}
+                    value={setBalance}
+                    onChange={(event) => setSetBalance(event.target.value)}
+                    required
+                  />
+                </label>
+                <label>
+                  <span>변경 사유</span>
+                  <input
+                    className="input"
+                    value={setReason}
+                    onChange={(event) => setSetReason(event.target.value)}
+                    minLength={2}
+                    maxLength={100}
+                    placeholder="예: 게임 수익 정산"
+                    required
+                  />
+                </label>
+                <Button type="submit" disabled={managerSetBalance.isPending}>
+                  {managerSetBalance.isPending ? "설정 중…" : "잔액 설정"}
+                </Button>
+              </form>
+              {managerSetBalance.isSuccess && (
+                <p className="form-notice" role="status">
+                  선택한 멤버의 포인트를 설정했습니다.
+                </p>
+              )}
+            </section>
+
+            <section className="manager-control-panel">
+              <h3>
+                <Megaphone size={18} /> 포인트 추가 지급
+              </h3>
+              <p>선택한 멤버의 현재 잔액에 포인트를 더합니다.</p>
+              <form
+                className="manager-point-grant-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  managerGrant.mutate();
+                }}
+              >
+                <label>
+                  <span>받을 멤버</span>
+                  <select
+                    className="input"
+                    value={grantTargetUserId}
+                    onChange={(event) => setGrantTargetUserId(event.target.value)}
+                    required
+                  >
+                    <option value="">선택</option>
+                    {data.balanceLeaderboard
+                      .filter((wallet) => wallet.userId !== currentUser?.id)
+                      .map((wallet) => (
+                        <option key={wallet.userId} value={wallet.userId}>
+                          {wallet.user.nickname}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label>
+                  <span>지급 포인트</span>
+                  <input
+                    className="input"
+                    type="number"
+                    min={10}
+                    max={10_000}
+                    step={10}
+                    value={grantAmount}
+                    onChange={(event) => setGrantAmount(event.target.value)}
+                    required
+                  />
+                </label>
+                <label>
+                  <span>지급 사유</span>
+                  <input
+                    className="input"
+                    value={grantReason}
+                    onChange={(event) => setGrantReason(event.target.value)}
+                    minLength={2}
+                    maxLength={100}
+                    placeholder="예: 장보기 담당 수고비"
+                    required
+                  />
+                </label>
+                <Button type="submit" disabled={managerGrant.isPending}>
+                  {managerGrant.isPending ? "지급 중…" : "포인트 지급"}
+                </Button>
+              </form>
+              {managerGrant.isSuccess && (
+                <p className="form-notice" role="status">
+                  포인트를 추가 지급했습니다.
+                </p>
+              )}
+            </section>
+
+            <section className="manager-control-panel">
+              <h3>
+                <PackagePlus size={18} /> 아이템 지급
+              </h3>
+              <p>지급된 아이템은 멤버의 보유함에 들어가며 포인트 차감 없이 사용할 수 있습니다.</p>
+              <form
+                className="manager-point-grant-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  managerGrantReward.mutate();
+                }}
+              >
+                <label>
+                  <span>받을 멤버</span>
+                  <select
+                    className="input"
+                    value={rewardGrantTargetUserId}
+                    onChange={(event) => setRewardGrantTargetUserId(event.target.value)}
+                    required
+                  >
+                    <option value="">선택</option>
+                    {data.balanceLeaderboard.map((wallet) => (
+                      <option key={wallet.userId} value={wallet.userId}>
+                        {wallet.user.nickname}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>지급 아이템</span>
+                  <select
+                    className="input"
+                    value={rewardGrantItemId}
+                    onChange={(event) => setRewardGrantItemId(event.target.value)}
+                    required
+                  >
+                    <option value="">선택</option>
+                    {data.rewards.map((reward) => (
+                      <option key={reward.id} value={reward.id}>
+                        {reward.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>수량</span>
+                  <input
+                    className="input"
+                    type="number"
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={rewardGrantQuantity}
+                    onChange={(event) => setRewardGrantQuantity(event.target.value)}
+                    required
+                  />
+                </label>
+                <label>
+                  <span>지급 사유</span>
+                  <input
+                    className="input"
+                    value={rewardGrantReason}
+                    onChange={(event) => setRewardGrantReason(event.target.value)}
+                    minLength={2}
+                    maxLength={100}
+                    placeholder="예: 현장 진행용 지급"
+                    required
+                  />
+                </label>
+                <Button type="submit" disabled={managerGrantReward.isPending}>
+                  {managerGrantReward.isPending ? "지급 중…" : "아이템 지급"}
+                </Button>
+              </form>
+              {rewardGrantTargetUserId && rewardGrantItemId && (
+                <small className="manager-current-inventory">
+                  현재 보유 수량:{" "}
+                  {data.rewardInventory.find(
+                    (entry) =>
+                      entry.userId === rewardGrantTargetUserId &&
+                      entry.rewardItemId === rewardGrantItemId,
+                  )?.quantity ?? 0}
+                  개
+                </small>
+              )}
+              {managerGrantReward.isSuccess && (
+                <p className="form-notice" role="status">
+                  아이템을 보유함에 지급했습니다.
+                </p>
+              )}
+            </section>
+          </div>
         </Card>
       )}
 
@@ -345,24 +594,62 @@ export function TripPointsPage() {
         </div>
       </section>
 
+      {myRewardInventory.length > 0 && (
+        <section className="workspace-section granted-reward-section">
+          <div className="section-heading-row">
+            <div>
+              <h2>내 아이템 보유함</h2>
+              <small>
+                구매하거나 관리자가 지급한 아이템의 보유량입니다. 사용할 때 대상을 선택합니다.
+              </small>
+            </div>
+            <select
+              className="input target-select"
+              value={targetUserId}
+              onChange={(event) => setTargetUserId(event.target.value)}
+              aria-label="지급 아이템 대상"
+            >
+              <option value="">지목할 친구 선택</option>
+              {data.balanceLeaderboard
+                .filter((wallet) => wallet.userId !== currentUser?.id)
+                .map((wallet) => (
+                  <option key={wallet.userId} value={wallet.userId}>
+                    {wallet.user.nickname}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div className="reward-grid">
+            {myRewardInventory.map((entry) => (
+              <Card className="reward-card granted-reward-card" key={entry.id}>
+                <Gift />
+                <span className="badge">보유 아이템</span>
+                <h3>{entry.rewardItem.title}</h3>
+                <p>{entry.rewardItem.description}</p>
+                <div>
+                  <strong>{entry.quantity}개 보유</strong>
+                  <Button
+                    disabled={
+                      useGrantedReward.isPending ||
+                      (rewardRequiresTarget(entry.rewardItem) && !targetUserId)
+                    }
+                    onClick={() => useGrantedReward.mutate(entry)}
+                  >
+                    사용
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="workspace-section">
         <div className="section-heading-row">
-          <h2>포인트 상점</h2>
-          <select
-            className="input target-select"
-            value={targetUserId}
-            onChange={(event) => setTargetUserId(event.target.value)}
-            aria-label="아이템 대상"
-          >
-            <option value="">지목할 친구 선택</option>
-            {data.balanceLeaderboard
-              .filter((wallet) => wallet.userId !== currentUser?.id)
-              .map((wallet) => (
-                <option key={wallet.userId} value={wallet.userId}>
-                  {wallet.user.nickname}
-                </option>
-              ))}
-          </select>
+          <div>
+            <h2>포인트 상점</h2>
+            <small>구매한 아이템은 내 보유함에 쌓이며, 사용할 때 대상을 선택합니다.</small>
+          </div>
         </div>
         <div className="reward-grid">
           {data.rewards.map((reward) => (
@@ -382,13 +669,10 @@ export function TripPointsPage() {
               <div>
                 <strong>{point(reward.cost)}</strong>
                 <Button
-                  disabled={
-                    data.myWallet.balance < reward.cost ||
-                    (reward.type === "TARGET_PENALTY" && !targetUserId)
-                  }
+                  disabled={redeem.isPending || data.myWallet.balance < reward.cost}
                   onClick={() => redeem.mutate(reward)}
                 >
-                  사용
+                  구매
                 </Button>
               </div>
             </Card>
@@ -416,7 +700,11 @@ export function TripPointsPage() {
                   {entry.user.nickname} · {time(entry.createdAt)}
                 </span>
                 <strong>
-                  {entry.sourceKey?.startsWith("admin-grant-") ? "관리자 공개 지급" : entry.reason}
+                  {entry.sourceKey?.startsWith("manager-set:")
+                    ? "관리자 잔액 설정"
+                    : entry.sourceKey?.startsWith("manager-grant:")
+                      ? "관리자 공개 지급"
+                      : entry.reason}
                 </strong>
                 <b className={entry.delta >= 0 ? "point-positive" : "point-negative"}>
                   {entry.delta >= 0 ? "+" : ""}
@@ -457,9 +745,12 @@ export function TripPointsPage() {
             )}
             {data.recentRedemptions.map((redemption) => (
               <div key={redemption.id}>
-                <span>{redemption.buyer.nickname}</span>
+                <span>
+                  {redemption.buyer.nickname} ·{" "}
+                  {time(redemption.resolvedAt ?? redemption.createdAt)}
+                </span>
                 <strong>{redemption.rewardItem.title}</strong>
-                <b>{redemption.target?.nickname ?? time(redemption.createdAt)}</b>
+                <b>{redemption.target ? `→ ${redemption.target.nickname}` : "대상 없음"}</b>
               </div>
             ))}
           </div>

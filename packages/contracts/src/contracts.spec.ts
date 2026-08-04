@@ -5,6 +5,8 @@ import {
   createManualCandidateSchema,
   loginSchema,
   managerPointGrantSchema,
+  managerPointSetSchema,
+  managerRewardGrantSchema,
   oddEvenGameSchema,
   signUpSchema,
 } from "./index";
@@ -124,5 +126,28 @@ describe("공유 입력 계약", () => {
     expect(managerPointGrantSchema.safeParse({ ...base, amount: 10, reason: "" }).success).toBe(
       false,
     );
+  });
+
+  it("관리자는 멤버 포인트를 0P를 포함한 정확한 값으로 설정한다", () => {
+    const base = {
+      targetUserId: "01KYNMKJWRDZXX5C6E68TBNK1X",
+      reason: "게임 정산",
+      clientRequestId: "point-set-request-1",
+    };
+    expect(managerPointSetSchema.safeParse({ ...base, balance: 0 }).success).toBe(true);
+    expect(managerPointSetSchema.safeParse({ ...base, balance: -1 }).success).toBe(false);
+    expect(managerPointSetSchema.safeParse({ ...base, balance: 1_000_001 }).success).toBe(false);
+  });
+
+  it("관리자 아이템 지급은 아이템과 1~100개 수량을 요구한다", () => {
+    const base = {
+      targetUserId: "01KYNMKJWRDZXX5C6E68TBNK1X",
+      rewardItemId: "01KYNMKK38GRX23J6HYQDV73NW",
+      reason: "현장 진행 보상",
+      clientRequestId: "reward-grant-request-1",
+    };
+    expect(managerRewardGrantSchema.safeParse({ ...base, quantity: 5 }).success).toBe(true);
+    expect(managerRewardGrantSchema.safeParse({ ...base, quantity: 0 }).success).toBe(false);
+    expect(managerRewardGrantSchema.safeParse({ ...base, quantity: 101 }).success).toBe(false);
   });
 });

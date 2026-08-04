@@ -226,6 +226,140 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
     expect(duplicatePointGrant.body.data.entry.id).toBe(pointGrant.body.data.entry.id);
     expect(duplicatePointGrant.body.data.duplicate).toBe(true);
 
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/set-balance`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({
+        targetUserId: friend.user.id,
+        balance: 500,
+        reason: "권한 없는 설정",
+        clientRequestId: randomUUID(),
+      })
+      .expect(403);
+    const balanceSetRequestId = randomUUID();
+    const balanceSet = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/set-balance`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        targetUserId: friend.user.id,
+        balance: 500,
+        reason: "게임 정산",
+        clientRequestId: balanceSetRequestId,
+      })
+      .expect(201);
+    expect(balanceSet.body).toMatchObject({
+      data: { duplicate: false, entry: { balanceAfter: 500, user: { id: friend.user.id } } },
+    });
+    const duplicateBalanceSet = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/set-balance`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        targetUserId: friend.user.id,
+        balance: 500,
+        reason: "게임 정산",
+        clientRequestId: balanceSetRequestId,
+      })
+      .expect(201);
+    expect(duplicateBalanceSet.body.data.entry.id).toBe(balanceSet.body.data.entry.id);
+    expect(duplicateBalanceSet.body.data.duplicate).toBe(true);
+
+    const rewardDashboard = await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}/points`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .expect(200);
+    const oneDrinkReward = rewardDashboard.body.data.rewards.find(
+      (reward: { title: string }) => reward.title === "한 잔 지목권",
+    );
+    expect(oneDrinkReward).toBeDefined();
+
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/rewards/grants`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({
+        targetUserId: friend.user.id,
+        rewardItemId: oneDrinkReward.id,
+        quantity: 5,
+        reason: "권한 없는 지급",
+        clientRequestId: randomUUID(),
+      })
+      .expect(403);
+    const rewardGrantRequestId = randomUUID();
+    const rewardGrant = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/rewards/grants`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        targetUserId: friend.user.id,
+        rewardItemId: oneDrinkReward.id,
+        quantity: 5,
+        reason: "현장 진행용 지급",
+        clientRequestId: rewardGrantRequestId,
+      })
+      .expect(201);
+    expect(rewardGrant.body).toMatchObject({
+      data: { duplicate: false, quantity: 5 },
+    });
+    const duplicateRewardGrant = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/rewards/grants`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        targetUserId: friend.user.id,
+        rewardItemId: oneDrinkReward.id,
+        quantity: 5,
+        reason: "현장 진행용 지급",
+        clientRequestId: rewardGrantRequestId,
+      })
+      .expect(201);
+    expect(duplicateRewardGrant.body.data.duplicate).toBe(true);
+    expect(duplicateRewardGrant.body.data.grants).toHaveLength(5);
+
+    const inventoryBeforeUse = await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}/points`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .expect(200);
+    const oneDrinkInventory = inventoryBeforeUse.body.data.rewardInventory.find(
+      (entry: { rewardItemId: string }) => entry.rewardItemId === oneDrinkReward.id,
+    );
+    expect(oneDrinkInventory.quantity).toBe(5);
+    const usedReward = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/rewards/inventory/${oneDrinkInventory.grantIds[0]}/use`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({ targetUserId: owner.user.id })
+      .expect(201);
+    expect(usedReward.body).toMatchObject({
+      data: {
+        status: "APPLIED",
+        cost: 0,
+        buyer: { id: friend.user.id },
+        target: { id: owner.user.id },
+      },
+    });
+
+    const purchasedReward = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/rewards/${oneDrinkReward.id}/redeem`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({})
+      .expect(201);
+    expect(purchasedReward.body).toMatchObject({
+      data: { status: "PENDING", cost: 180, buyer: { id: friend.user.id } },
+    });
+    const inventoryAfterPurchase = await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}/points`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .expect(200);
+    expect(
+      inventoryAfterPurchase.body.data.rewardInventory.find(
+        (entry: { rewardItemId: string }) => entry.rewardItemId === oneDrinkReward.id,
+      ).quantity,
+    ).toBe(5);
+    expect(inventoryAfterPurchase.body.data.recentRedemptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: usedReward.body.data.id,
+          target: expect.objectContaining({ id: owner.user.id }),
+        }),
+      ]),
+    );
+
     const publicMessages = await request(app.getHttpServer())
       .get(`/v1/trips/${trip.id}/messages`)
       .set("authorization", `Bearer ${friend.accessToken}`)

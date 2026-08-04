@@ -836,6 +836,13 @@ export function TripArcadePage() {
               </button>
             ))}
           </div>
+          <div className="odds-mini" aria-label="짱깸보 결과 확률">
+            {data.rules.games.rpsRoulette.outcomes.map((outcome) => (
+              <span key={outcome.outcome}>
+                {{ WIN: "승", DRAW: "무", LOSS: "패" }[outcome.outcome]} {outcome.probability}
+              </span>
+            ))}
+          </div>
           <div className="rps-arena">
             <div className={busy ? "rps-hand is-shaking" : "rps-hand"}>
               <span>나</span>
