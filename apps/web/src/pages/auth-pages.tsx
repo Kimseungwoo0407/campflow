@@ -67,7 +67,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthShell title="친구 계정으로 로그인" lead="회원가입 없이 이름과 생일 4자리로 들어오세요.">
+    <AuthShell title="친구 계정으로 로그인" lead="이름과 비밀번호를 입력하세요.">
       <form className="stack-form" onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
         <Field
           label="이름"
@@ -81,14 +81,13 @@ export function LoginPage() {
           }}
         />
         <Field
-          label="생일 4자리"
+          label="비밀번호"
           error={errors.password?.message}
           inputProps={{
             id: "login-password",
             type: "password",
-            inputMode: "numeric",
-            maxLength: 4,
-            placeholder: "월일 4자리",
+            maxLength: 128,
+            placeholder: "비밀번호",
             autoComplete: "current-password",
             ...register("password"),
           }}
@@ -102,8 +101,10 @@ export function LoginPage() {
           {isSubmitting ? "로그인 중…" : "로그인"}
         </Button>
         <div className="demo-hint">
-          <b>별도 회원가입은 필요 없어요.</b>
-          <span>전달받은 본인 이름과 생일의 월·일 네 자리를 입력하세요.</span>
+          <b>처음 로그인하나요?</b>
+          <span>
+            초기 비밀번호는 전달받은 생일 월·일 네 자리입니다. 변경했다면 새 비밀번호를 입력하세요.
+          </span>
         </div>
       </form>
     </AuthShell>
