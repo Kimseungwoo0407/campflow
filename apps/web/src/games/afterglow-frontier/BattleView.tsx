@@ -1,7 +1,6 @@
 import {
   ArrowLeft,
   ArrowRight,
-  Bot,
   Castle,
   Crosshair,
   DoorClosed,
@@ -15,12 +14,12 @@ import {
   Sparkles,
   Swords,
   Target,
-  UserRound,
   Zap,
 } from "lucide-react";
 import { useEffect } from "react";
 import { ATTACK_UNITS } from "./game-data";
-import type { AttackUnitKey, BattleState, Combatant, DefenseFacilityKey } from "./types";
+import { WarriorSprite } from "./WarriorSprite";
+import type { AttackUnitKey, BattleState, DefenseFacilityKey } from "./types";
 
 const attackIcons = {
   bulwark: Shield,
@@ -32,17 +31,6 @@ const attackIcons = {
 function timeLabel(seconds: number): string {
   const safe = Math.max(0, Math.ceil(seconds));
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
-}
-
-function UnitGlyph({ unit }: { unit: Combatant }) {
-  if (unit.kind === "HERO") return <UserRound />;
-  if (unit.kind === "GUARDIAN") return <Bot />;
-  if (unit.unitKey === "bulwark" || unit.unitKey === "warden") return <Shield />;
-  if (unit.unitKey === "lancer") return <Swords />;
-  if (unit.unitKey === "marksman" || unit.unitKey === "slinger") return <Crosshair />;
-  if (unit.unitKey === "sapper") return <Hammer />;
-  if (unit.unitKey === "mender") return <HeartPulse />;
-  return <Sparkles />;
 }
 
 function StructureGlyph({ id }: { id: DefenseFacilityKey }) {
@@ -154,9 +142,7 @@ export function BattleView({
             <div className="af-world-health">
               <i style={{ width: `${(unit.hp / unit.maxHp) * 100}%` }} />
             </div>
-            <span>
-              <UnitGlyph unit={unit} />
-            </span>
+            <WarriorSprite unit={unit} />
             {unit.kind !== "UNIT" && <b>{unit.name}</b>}
           </div>
         ))}

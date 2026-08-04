@@ -1210,25 +1210,13 @@
   filter: grayscale(1);
 }
 .af-combatant {
-  width: 32px;
+  width: 52px;
   display: grid;
   justify-items: center;
 }
-.af-combatant > span {
-  width: 32px;
-  height: 32px;
-  border: 1px solid;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  box-shadow: 0 5px 12px rgb(0 0 0 / 45%);
-}
-.af-combatant svg {
-  width: 17px;
-}
 .af-combatant > b {
   position: absolute;
-  bottom: -17px;
+  top: calc(100% + 2px);
   width: 80px;
   overflow: hidden;
   color: #dbeafe;
@@ -1237,40 +1225,668 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.af-combatant--attacker > span {
-  border-color: #60a5fa;
-  background: #172554;
-  color: #bfdbfe;
-}
-.af-combatant--defender > span {
-  border-color: #f87171;
-  background: #4c1d26;
-  color: #fecaca;
-}
 .af-combatant--hero {
   z-index: 8;
-  width: 42px;
-}
-.af-combatant--hero > span {
-  width: 42px;
-  height: 42px;
-  border-width: 2px;
+  width: 58px;
 }
 .af-combatant--guardian {
   z-index: 7;
-  width: 52px;
+  width: 72px;
 }
-.af-combatant--guardian > span {
-  width: 52px;
-  height: 52px;
-  border-width: 2px;
+
+/* Code-native articulated battle characters. Each role keeps a distinct silhouette at 48px. */
+.af-warrior {
+  --armor: #31546a;
+  --armor-dark: #182c3c;
+  --cloth: #147d6f;
+  --cloth-dark: #0b4d48;
+  --skin: #d7a479;
+  --metal: #b9cad0;
+  --metal-dark: #586b75;
+  --energy: #fbbf24;
+  --lunge: 4px;
+  position: relative;
+  width: 48px;
+  height: 68px;
+  border: 0;
+  border-radius: 0;
+  display: block;
+  background: transparent;
+  color: inherit;
+  filter: drop-shadow(0 6px 4px rgb(0 0 0 / 30%));
+  box-shadow: none;
+  transform-origin: 50% 100%;
 }
-.af-combatant--guardian svg {
+.af-warrior--defender {
+  --armor: #74434a;
+  --armor-dark: #351e27;
+  --cloth: #9d4a42;
+  --cloth-dark: #57292c;
+  --metal: #c6b5a5;
+  --metal-dark: #68584f;
+  --energy: #fb923c;
+  --lunge: -4px;
+}
+.af-warrior__shadow {
+  position: absolute;
+  right: 6px;
+  bottom: 0;
+  left: 6px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 38%);
+  transform: scaleY(0.55);
+}
+.af-warrior__rig {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+}
+.af-warrior--defender .af-warrior__rig {
+  transform: scaleX(-1);
+}
+.af-warrior__body,
+.af-warrior__head,
+.af-warrior__arm,
+.af-warrior__leg,
+.af-warrior__cape,
+.af-warrior__shield,
+.af-warrior__weapon,
+.af-warrior__signal,
+.af-warrior__belt {
+  position: absolute;
+  display: block;
+}
+.af-warrior__cape {
+  z-index: 1;
+  top: 25px;
+  left: 7px;
+  width: 18px;
+  height: 29px;
+  clip-path: polygon(30% 0, 100% 12%, 75% 100%, 0 78%);
+  background: var(--cloth-dark);
+  transform: rotate(7deg);
+  transform-origin: 80% 10%;
+}
+.af-warrior__body {
+  z-index: 4;
+  top: 25px;
+  left: 14px;
+  width: 22px;
+  height: 25px;
+  border: 2px solid var(--armor-dark);
+  clip-path: polygon(15% 0, 84% 0, 100% 85%, 72% 100%, 25% 100%, 0 84%);
+  background: linear-gradient(90deg, var(--armor-dark), var(--armor) 38% 70%, var(--metal));
+}
+.af-warrior__body > i {
+  position: absolute;
+  top: 5px;
+  right: 4px;
+  width: 4px;
+  height: 13px;
+  background: rgb(255 255 255 / 18%);
+  transform: skewX(-12deg);
+}
+.af-warrior__belt {
+  z-index: 6;
+  top: 45px;
+  left: 13px;
+  width: 24px;
+  height: 5px;
+  border: 1px solid #201814;
+  background: #60462e;
+}
+.af-warrior__belt::after {
+  position: absolute;
+  top: 0;
+  left: 9px;
+  width: 5px;
+  height: 4px;
+  background: var(--energy);
+  content: "";
+}
+.af-warrior__head {
+  z-index: 7;
+  top: 9px;
+  left: 18px;
+  width: 17px;
+  height: 17px;
+  border: 2px solid var(--armor-dark);
+  border-radius: 45% 55% 48% 44%;
+  background: var(--skin);
+}
+.af-warrior__head::before {
+  position: absolute;
+  top: -4px;
+  right: -3px;
+  left: -3px;
+  height: 10px;
+  border-radius: 50% 56% 22% 30%;
+  background: var(--armor);
+  content: "";
+}
+.af-warrior__head > i {
+  position: absolute;
+  z-index: 2;
+  top: 7px;
+  right: 2px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fef3c7;
+  box-shadow: 0 0 5px var(--energy);
+}
+.af-warrior__leg {
+  z-index: 2;
+  top: 47px;
+  width: 7px;
+  height: 17px;
+  border: 2px solid var(--armor-dark);
+  border-radius: 2px 2px 3px 3px;
+  background: var(--cloth);
+  transform-origin: 50% 0;
+}
+.af-warrior__leg > i {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  width: 11px;
+  height: 5px;
+  border-radius: 4px 5px 2px 2px;
+  background: var(--armor-dark);
+}
+.af-warrior__leg--back {
+  left: 16px;
+  filter: brightness(0.7);
+}
+.af-warrior__leg--front {
+  z-index: 3;
+  left: 28px;
+}
+.af-warrior__arm {
+  z-index: 3;
+  top: 27px;
+  width: 6px;
+  height: 22px;
+  border: 2px solid var(--armor-dark);
+  border-radius: 4px;
+  background: var(--cloth);
+  transform-origin: 50% 2px;
+}
+.af-warrior__arm > i {
+  position: absolute;
+  right: -2px;
+  bottom: -4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--skin);
+}
+.af-warrior__arm--back {
+  left: 11px;
+  filter: brightness(0.72);
+  transform: rotate(15deg);
+}
+.af-warrior__arm--front {
+  z-index: 8;
+  left: 32px;
+  transform: rotate(-20deg);
+}
+.af-warrior__shield {
+  z-index: 10;
+  top: 27px;
+  left: 29px;
+  width: 18px;
+  height: 28px;
+  border: 3px solid var(--metal-dark);
+  border-radius: 50% 25% 45% 55%;
+  background: linear-gradient(100deg, var(--metal-dark), var(--metal));
+  transform: rotate(-5deg);
+}
+.af-warrior__shield > i {
+  position: absolute;
+  top: 8px;
+  left: 5px;
+  width: 5px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--energy);
+  box-shadow: 0 0 6px var(--energy);
+}
+.af-warrior__weapon {
+  z-index: 9;
+  top: 31px;
+  left: 34px;
+  width: 28px;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #62472c 0 35%, var(--metal-dark) 36%, var(--metal));
+  transform: rotate(-30deg);
+  transform-origin: 2px 50%;
+}
+.af-warrior__weapon > i {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 10px;
+  clip-path: polygon(0 0, 100% 50%, 0 100%, 22% 50%);
+  background: #e2e8f0;
+}
+.af-warrior__signal {
+  z-index: 11;
+  top: 35px;
+  left: 14px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #713f12;
+  border-radius: 50%;
+  background: var(--energy);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--energy) 75%, transparent);
+}
+
+/* Hero and attack silhouettes */
+.af-warrior--hero {
+  --armor: #1f6a75;
+  --armor-dark: #123746;
+  --cloth: #1b8f79;
+  width: 54px;
+  height: 73px;
+}
+.af-warrior--hero .af-warrior__cape {
+  width: 22px;
+  background: #0f4f55;
+}
+.af-warrior--hero .af-warrior__head::after {
+  position: absolute;
+  top: 3px;
+  left: -8px;
+  width: 12px;
+  height: 4px;
+  background: #f59e0b;
+  content: "";
+  transform: rotate(-12deg);
+}
+.af-warrior--bulwark {
+  --armor: #526b78;
+  --armor-dark: #202f38;
+  --cloth: #266c62;
+  width: 57px;
+}
+.af-warrior--bulwark .af-warrior__body {
+  left: 11px;
+  width: 28px;
+}
+.af-warrior--bulwark .af-warrior__shield {
+  top: 20px;
+  left: 27px;
   width: 27px;
-  height: 27px;
+  height: 42px;
+  border-radius: 4px 8px 12px 4px;
 }
-.af-combatant.is-attacking > span {
-  box-shadow: 0 0 16px rgb(251 191 36 / 38%);
+.af-warrior--bulwark .af-warrior__weapon,
+.af-warrior--warden .af-warrior__weapon {
+  z-index: 2;
+  top: 30px;
+  left: 9px;
+}
+.af-warrior--lancer .af-warrior__weapon {
+  top: 27px;
+  left: 30px;
+  width: 52px;
+  height: 3px;
+  background: #8b6841;
+  transform: rotate(-10deg);
+}
+.af-warrior--lancer .af-warrior__weapon > i {
+  top: -5px;
+  width: 14px;
+  height: 13px;
+  background: #dce7e9;
+}
+.af-warrior--lancer .af-warrior__weapon::after {
+  position: absolute;
+  top: -1px;
+  right: 8px;
+  width: 13px;
+  height: 10px;
+  border-bottom: 3px solid var(--energy);
+  border-radius: 50%;
+  content: "";
+}
+.af-warrior--marksman .af-warrior__weapon,
+.af-warrior--slinger .af-warrior__weapon {
+  top: 31px;
+  width: 31px;
+  background: #8b6841;
+  transform: rotate(0);
+}
+.af-warrior--marksman .af-warrior__weapon::before {
+  position: absolute;
+  top: -9px;
+  right: 2px;
+  width: 22px;
+  height: 18px;
+  border: 3px solid var(--metal);
+  border-right-color: transparent;
+  border-left-color: transparent;
+  border-radius: 50%;
+  content: "";
+}
+.af-warrior--marksman .af-warrior__weapon > i {
+  top: 1px;
+  right: -8px;
+  width: 15px;
+  height: 2px;
+  clip-path: none;
+}
+.af-warrior--sapper .af-warrior__weapon {
+  top: 30px;
+  left: 30px;
+  width: 34px;
+  background: #755336;
+  transform: rotate(-55deg);
+}
+.af-warrior--sapper .af-warrior__weapon > i {
+  top: -8px;
+  right: -7px;
+  width: 16px;
+  height: 19px;
+  clip-path: polygon(0 8%, 100% 0, 94% 82%, 18% 100%);
+  background: linear-gradient(90deg, #485a61, #c4d1d4);
+}
+
+/* Defensive silhouettes */
+.af-warrior--warden .af-warrior__shield {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+}
+.af-warrior--slinger .af-warrior__weapon {
+  width: 25px;
+  height: 14px;
+  border: 0;
+  border-top: 3px solid #b58b5a;
+  border-bottom: 3px solid #b58b5a;
+  border-radius: 50%;
+  background: transparent;
+}
+.af-warrior--slinger .af-warrior__weapon > i {
+  top: 4px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  clip-path: none;
+  background: #8f9ba0;
+}
+.af-warrior--golem {
+  --armor: #986f52;
+  --armor-dark: #483328;
+  --cloth: #6b5344;
+  --skin: #b98963;
+  width: 62px;
+  height: 73px;
+}
+.af-warrior--golem .af-warrior__body {
+  top: 20px;
+  left: 13px;
+  width: 37px;
+  height: 35px;
+  clip-path: polygon(14% 0, 86% 4%, 100% 35%, 86% 100%, 15% 94%, 0 40%);
+}
+.af-warrior--golem .af-warrior__head {
+  top: 9px;
+  left: 23px;
+  width: 25px;
+  height: 20px;
+  border-radius: 5px;
+  background: #a77c5c;
+}
+.af-warrior--golem .af-warrior__arm {
+  top: 25px;
+  width: 12px;
+  height: 30px;
+  background: #8d674d;
+}
+.af-warrior--golem .af-warrior__arm--back {
+  left: 5px;
+}
+.af-warrior--golem .af-warrior__arm--front {
+  left: 44px;
+}
+.af-warrior--golem .af-warrior__leg {
+  width: 12px;
+  height: 16px;
+}
+.af-warrior--golem .af-warrior__leg--back {
+  left: 16px;
+}
+.af-warrior--golem .af-warrior__leg--front {
+  left: 37px;
+}
+.af-warrior--golem .af-warrior__weapon,
+.af-warrior--golem .af-warrior__belt {
+  display: none;
+}
+.af-warrior--mender .af-warrior__weapon {
+  top: 26px;
+  left: 31px;
+  width: 45px;
+  height: 4px;
+  background: #7c5d3b;
+  transform: rotate(-65deg);
+}
+.af-warrior--mender .af-warrior__weapon > i {
+  top: -7px;
+  right: -9px;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--energy);
+  border-radius: 50%;
+  clip-path: none;
+  background: transparent;
+  box-shadow: 0 0 8px var(--energy);
+}
+
+/* The final guardian is intentionally much larger than line units. */
+.af-warrior--guardian {
+  --armor: #73504a;
+  --armor-dark: #2d2023;
+  --cloth: #81453d;
+  --skin: #7e5d4f;
+  width: 72px;
+  height: 86px;
+}
+.af-warrior--guardian .af-warrior__body {
+  top: 29px;
+  left: 18px;
+  width: 43px;
+  height: 40px;
+  clip-path: polygon(12% 0, 86% 0, 100% 65%, 82% 100%, 20% 96%, 0 60%);
+}
+.af-warrior--guardian .af-warrior__head {
+  top: 12px;
+  left: 30px;
+  width: 29px;
+  height: 25px;
+  border-radius: 35% 45% 48% 42%;
+  background: #715048;
+}
+.af-warrior--guardian .af-warrior__head::before,
+.af-warrior--guardian .af-warrior__head::after {
+  position: absolute;
+  top: -13px;
+  width: 18px;
+  height: 18px;
+  border-top: 6px solid #d1c1ae;
+  border-radius: 50%;
+  background: transparent;
+  content: "";
+}
+.af-warrior--guardian .af-warrior__head::before {
+  left: -12px;
+  transform: rotate(-35deg);
+}
+.af-warrior--guardian .af-warrior__head::after {
+  right: -12px;
+  transform: rotate(35deg);
+}
+.af-warrior--guardian .af-warrior__arm {
+  top: 36px;
+  width: 13px;
+  height: 35px;
+  background: #5e3f3b;
+}
+.af-warrior--guardian .af-warrior__arm--back {
+  left: 8px;
+}
+.af-warrior--guardian .af-warrior__arm--front {
+  left: 56px;
+}
+.af-warrior--guardian .af-warrior__leg {
+  top: 66px;
+  width: 14px;
+  height: 17px;
+}
+.af-warrior--guardian .af-warrior__leg--back {
+  left: 22px;
+}
+.af-warrior--guardian .af-warrior__leg--front {
+  left: 45px;
+}
+.af-warrior--guardian .af-warrior__belt {
+  top: 62px;
+  left: 18px;
+  width: 43px;
+}
+.af-warrior--guardian .af-warrior__weapon {
+  top: 42px;
+  left: 58px;
+  width: 38px;
+  height: 6px;
+  transform: rotate(-40deg);
+}
+.af-warrior--guardian .af-warrior__weapon > i {
+  top: -11px;
+  width: 20px;
+  height: 27px;
+  background: #d7d1c8;
+}
+
+/* Locomotion and combat motion use transforms only to stay cheap on mobile. */
+.af-combatant.is-moving .af-warrior {
+  animation: af-warrior-bob 420ms ease-in-out infinite alternate;
+}
+.af-combatant.is-moving .af-warrior__leg--front {
+  animation: af-leg-front 420ms ease-in-out infinite alternate;
+}
+.af-combatant.is-moving .af-warrior__leg--back {
+  animation: af-leg-back 420ms ease-in-out infinite alternate;
+}
+.af-combatant.is-moving .af-warrior__arm--front {
+  animation: af-arm-front 420ms ease-in-out infinite alternate;
+}
+.af-combatant.is-moving .af-warrior__arm--back {
+  animation: af-arm-back 420ms ease-in-out infinite alternate;
+}
+.af-combatant.is-moving .af-warrior__cape {
+  animation: af-cape-drift 500ms ease-in-out infinite alternate;
+}
+.af-combatant.is-attacking .af-warrior {
+  animation: af-warrior-lunge 520ms ease-in-out infinite;
+}
+.af-combatant.is-attacking .af-warrior__weapon {
+  animation: af-weapon-strike 520ms ease-in-out infinite;
+}
+.af-combatant.is-attacking .af-warrior__arm--front {
+  animation: af-attack-arm 520ms ease-in-out infinite;
+}
+.af-combatant.is-attacking .af-warrior__signal,
+.af-combatant.is-attacking .af-warrior--mender .af-warrior__weapon > i {
+  animation: af-energy-pulse 700ms ease-in-out infinite alternate;
+}
+
+@keyframes af-warrior-bob {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-2px);
+  }
+}
+@keyframes af-leg-front {
+  from {
+    transform: rotate(-20deg);
+  }
+  to {
+    transform: rotate(22deg);
+  }
+}
+@keyframes af-leg-back {
+  from {
+    transform: rotate(20deg);
+  }
+  to {
+    transform: rotate(-22deg);
+  }
+}
+@keyframes af-arm-front {
+  from {
+    transform: rotate(18deg);
+  }
+  to {
+    transform: rotate(-28deg);
+  }
+}
+@keyframes af-arm-back {
+  from {
+    transform: rotate(-20deg);
+  }
+  to {
+    transform: rotate(20deg);
+  }
+}
+@keyframes af-cape-drift {
+  from {
+    transform: rotate(4deg) scaleX(0.92);
+  }
+  to {
+    transform: rotate(12deg) scaleX(1.08);
+  }
+}
+@keyframes af-warrior-lunge {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+  45% {
+    transform: translateX(var(--lunge)) translateY(-1px);
+  }
+}
+@keyframes af-weapon-strike {
+  0%,
+  100% {
+    transform: rotate(-42deg);
+  }
+  48% {
+    transform: rotate(18deg);
+  }
+}
+@keyframes af-attack-arm {
+  0%,
+  100% {
+    transform: rotate(-28deg);
+  }
+  48% {
+    transform: rotate(36deg);
+  }
+}
+@keyframes af-energy-pulse {
+  to {
+    filter: brightness(1.7);
+    transform: scale(1.2);
+  }
 }
 .af-world-health {
   width: 40px;
@@ -2090,22 +2706,16 @@
     left: 0.4rem;
   }
   .af-combatant {
-    width: 25px;
+    width: 46px;
   }
-  .af-combatant > span {
-    width: 27px;
-    height: 27px;
+  .af-combatant--guardian {
+    width: 62px;
   }
-  .af-combatant svg {
-    width: 14px;
+  .af-warrior--guardian {
+    scale: 0.88;
   }
-  .af-combatant--hero > span {
-    width: 36px;
-    height: 36px;
-  }
-  .af-combatant--guardian > span {
-    width: 42px;
-    height: 42px;
+  .af-warrior--hero {
+    scale: 0.94;
   }
   .af-movement-pad {
     grid-template-columns: 1fr 1.15fr 1fr;
