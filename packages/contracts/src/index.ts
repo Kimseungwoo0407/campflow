@@ -22,10 +22,8 @@ export const loginIdentifierSchema = z
   .max(254);
 export const passwordSchema = z
   .string()
-  .min(12, "비밀번호는 12자 이상이어야 합니다.")
-  .max(128, "비밀번호는 128자 이하여야 합니다.")
-  .regex(/[a-zA-Z]/, "영문자를 하나 이상 포함해 주세요.")
-  .regex(/[0-9]/, "숫자를 하나 이상 포함해 주세요.");
+  .min(4, "비밀번호는 4자 이상이어야 합니다.")
+  .max(128, "비밀번호는 128자 이하여야 합니다.");
 export const nicknameSchema = z.string().trim().min(2).max(30);
 
 export const signUpSchema = z

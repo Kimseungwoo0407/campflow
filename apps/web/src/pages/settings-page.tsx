@@ -224,7 +224,7 @@ export function SettingsPage() {
           />
           <Field
             label="새 비밀번호"
-            hint="12자 이상, 영문자와 숫자를 각각 하나 이상 포함해 주세요."
+            hint="4자 이상 입력해 주세요."
             error={passwordForm.formState.errors.newPassword?.message}
             inputProps={{
               id: "settings-new-password",

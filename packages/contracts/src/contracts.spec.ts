@@ -105,6 +105,12 @@ describe("공유 입력 계약", () => {
         newPassword: "same-password-2026",
       }).success,
     ).toBe(false);
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: "1234",
+        newPassword: "5678",
+      }).success,
+    ).toBe(true);
   });
 
   it("관리자 포인트 지급은 10P 단위와 공개 사유를 요구한다", () => {
