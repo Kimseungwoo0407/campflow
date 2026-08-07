@@ -35,7 +35,8 @@ jobs:
       - run: pnpm lint && pnpm typecheck && pnpm test
       - run: pnpm --filter @campflow/web build
         env:
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          # Temporary Quick Tunnel endpoint for 2026-08-07.
+          VITE_API_BASE_URL: https://continental-magazines-breed-traditional.trycloudflare.com/v1
           VITE_GITHUB_PAGES_BASE: ${{ vars.VITE_GITHUB_PAGES_BASE || '/' }}
       - uses: actions/upload-pages-artifact@v3
         with:
