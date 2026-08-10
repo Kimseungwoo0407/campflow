@@ -270,7 +270,11 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
     const oneDrinkReward = rewardDashboard.body.data.rewards.find(
       (reward: { title: string }) => reward.title === "한 잔 지목권",
     );
+    const oneDrinkShield = rewardDashboard.body.data.rewards.find(
+      (reward: { title: string }) => reward.title === "한 잔 방어권",
+    );
     expect(oneDrinkReward).toBeDefined();
+    expect(oneDrinkShield).toBeDefined();
 
     await request(app.getHttpServer())
       .post(`/v1/trips/${trip.id}/rewards/grants`)
@@ -333,6 +337,63 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
         target: { id: owner.user.id },
       },
     });
+    const oneDrinkCountsBeforeDefense = await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}/points`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(oneDrinkCountsBeforeDefense.body.data.oneDrinkTargetCounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ userId: owner.user.id, count: 1 }),
+        expect.objectContaining({ userId: friend.user.id, count: 0 }),
+      ]),
+    );
+
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/rewards/grants`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({
+        targetUserId: owner.user.id,
+        rewardItemId: oneDrinkShield.id,
+        quantity: 1,
+        reason: "한 잔 방어 테스트",
+        clientRequestId: randomUUID(),
+      })
+      .expect(201);
+    const ownerInventory = await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}/points`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .expect(200);
+    const shieldInventory = ownerInventory.body.data.rewardInventory.find(
+      (entry: { rewardItemId: string; userId: string }) =>
+        entry.rewardItemId === oneDrinkShield.id && entry.userId === owner.user.id,
+    );
+    const usedShield = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/rewards/inventory/${shieldInventory.grantIds[0]}/use`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .send({})
+      .expect(201);
+    expect(usedShield.body).toMatchObject({
+      data: {
+        status: "APPLIED",
+        buyer: { id: owner.user.id },
+        outcome: {
+          action: "BLOCK_ONE_DRINK",
+          blockedRedemptionId: usedReward.body.data.id,
+        },
+      },
+    });
+    const oneDrinkCountsAfterDefense = await request(app.getHttpServer())
+      .get(`/v1/trips/${trip.id}/points`)
+      .set("authorization", `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(oneDrinkCountsAfterDefense.body.data.oneDrinkTargetCounts).toEqual(
+      expect.arrayContaining([expect.objectContaining({ userId: owner.user.id, count: 0 })]),
+    );
+    expect(oneDrinkCountsAfterDefense.body.data.recentRedemptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: usedReward.body.data.id, status: "REJECTED" }),
+      ]),
+    );
 
     const purchasedReward = await request(app.getHttpServer())
       .post(`/v1/trips/${trip.id}/rewards/${oneDrinkReward.id}/redeem`)
@@ -365,9 +426,7 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
         expect(body).toMatchObject({ error: { code: "FREE_REWARD_NOT_SELLABLE" } });
       });
     const soldReward = await request(app.getHttpServer())
-      .post(
-        `/v1/trips/${trip.id}/rewards/inventory/${purchasedInventory.sellableGrantIds[0]}/sell`,
-      )
+      .post(`/v1/trips/${trip.id}/rewards/inventory/${purchasedInventory.sellableGrantIds[0]}/sell`)
       .set("authorization", `Bearer ${friend.accessToken}`)
       .expect(201);
     expect(soldReward.body).toMatchObject({
@@ -378,9 +437,7 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       },
     });
     const duplicateSale = await request(app.getHttpServer())
-      .post(
-        `/v1/trips/${trip.id}/rewards/inventory/${purchasedInventory.sellableGrantIds[0]}/sell`,
-      )
+      .post(`/v1/trips/${trip.id}/rewards/inventory/${purchasedInventory.sellableGrantIds[0]}/sell`)
       .set("authorization", `Bearer ${friend.accessToken}`)
       .expect(201);
     expect(duplicateSale.body).toMatchObject({

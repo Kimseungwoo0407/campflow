@@ -49,6 +49,14 @@ const defaultRewards = [
     effect: { action: "NOMINATE_ONE_DRINK", targetRequired: true },
   },
   {
+    seedKey: "one-drink-shield",
+    title: "한 잔 방어권",
+    description: "나에게 적용된 한 잔 지목 1회를 막습니다. 받은 지목이 있을 때 사용할 수 있습니다.",
+    cost: 150,
+    type: "PROTECTION" as const,
+    effect: { action: "BLOCK_ONE_DRINK" },
+  },
+  {
     seedKey: "campaign-vote",
     title: "투표 선동권",
     description: "투표 전에 1분 동안 원하는 안건을 공개적으로 홍보합니다.",
@@ -200,6 +208,10 @@ export function payoutWithProfitMultiplier(wager: number, multiplier: number): n
   return wager + Math.floor(wager * multiplier);
 }
 
+export function payoutWithTotalMultiplier(wager: number, multiplier: number): number {
+  return Math.floor(wager * multiplier);
+}
+
 export function rewardResaleValue(cost: number): number {
   return Math.floor((Math.max(0, cost) * 70) / 100);
 }
@@ -225,60 +237,84 @@ export class PointsService {
     const membership = await this.access.requireMembership(userId, tripId);
     await Promise.all([this.ensureWallets(tripId), this.ensureRewards(tripId)]);
     const { start: todayStart, end: todayEnd } = this.kstDayRange();
-    const [wallets, recentEntries, rewards, recentRedemptions, grantedRewards, tapRewardedToday] =
-      await Promise.all([
-        this.prisma.pointWallet.findMany({
-          where: { tripId },
-          include: { user: { select: { id: true, nickname: true } } },
-        }),
-        this.prisma.pointLedger.findMany({
-          where: { tripId },
-          include: { user: { select: { id: true, nickname: true } } },
-          orderBy: { createdAt: "desc" },
-          take: 30,
-        }),
-        this.prisma.rewardItem.findMany({
-          where: { tripId, active: true },
-          orderBy: [{ sortOrder: "asc" }, { cost: "asc" }],
-        }),
-        this.prisma.rewardRedemption.findMany({
-          where: { tripId, status: { not: "PENDING" } },
-          include: {
-            rewardItem: true,
-            buyer: { select: { id: true, nickname: true } },
-            target: { select: { id: true, nickname: true } },
-          },
-          orderBy: { resolvedAt: "desc" },
-          take: 30,
-        }),
-        this.prisma.rewardRedemption.findMany({
-          where: {
-            tripId,
-            status: "PENDING",
-            ...(membership.role === "MANAGER" ? {} : { buyerId: userId }),
-          },
-          include: {
-            rewardItem: true,
-            buyer: { select: { id: true, nickname: true } },
-          },
-          orderBy: { createdAt: "asc" },
-        }),
-        this.prisma.gameRound.count({
-          where: {
-            tripId,
-            userId,
-            gameType: "TAP",
-            pointDelta: { gt: 0 },
-            createdAt: { gte: todayStart, lt: todayEnd },
-          },
-        }),
-      ]);
+    const [
+      wallets,
+      recentEntries,
+      rewards,
+      recentRedemptions,
+      grantedRewards,
+      activeOneDrinkTargets,
+      tapRewardedToday,
+    ] = await Promise.all([
+      this.prisma.pointWallet.findMany({
+        where: { tripId },
+        include: { user: { select: { id: true, nickname: true } } },
+      }),
+      this.prisma.pointLedger.findMany({
+        where: { tripId },
+        include: { user: { select: { id: true, nickname: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+      }),
+      this.prisma.rewardItem.findMany({
+        where: { tripId, active: true },
+        orderBy: [{ sortOrder: "asc" }, { cost: "asc" }],
+      }),
+      this.prisma.rewardRedemption.findMany({
+        where: { tripId, status: { not: "PENDING" } },
+        include: {
+          rewardItem: true,
+          buyer: { select: { id: true, nickname: true } },
+          target: { select: { id: true, nickname: true } },
+        },
+        orderBy: { resolvedAt: "desc" },
+        take: 30,
+      }),
+      this.prisma.rewardRedemption.findMany({
+        where: {
+          tripId,
+          status: "PENDING",
+          ...(membership.role === "MANAGER" ? {} : { buyerId: userId }),
+        },
+        include: {
+          rewardItem: true,
+          buyer: { select: { id: true, nickname: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      this.prisma.rewardRedemption.findMany({
+        where: {
+          tripId,
+          status: "APPLIED",
+          targetId: { not: null },
+          rewardItem: { seedKey: "one-drink-target" },
+        },
+        select: { targetId: true },
+      }),
+      this.prisma.gameRound.count({
+        where: {
+          tripId,
+          userId,
+          gameType: "TAP",
+          pointDelta: { gt: 0 },
+          createdAt: { gte: todayStart, lt: todayEnd },
+        },
+      }),
+    ]);
     const byBalance = [...wallets].sort(
       (left, right) => right.balance - left.balance || right.earnedTotal - left.earnedTotal,
     );
     const byActivity = [...wallets].sort(
       (left, right) => right.earnedTotal - left.earnedTotal || right.balance - left.balance,
     );
+    const oneDrinkCountByUserId = new Map<string, number>();
+    for (const redemption of activeOneDrinkTargets) {
+      if (!redemption.targetId) continue;
+      oneDrinkCountByUserId.set(
+        redemption.targetId,
+        (oneDrinkCountByUserId.get(redemption.targetId) ?? 0) + 1,
+      );
+    }
     const inventoryByMemberAndItem = new Map<
       string,
       {
@@ -328,6 +364,16 @@ export class PointsService {
       rewards,
       rewardInventory: [...inventoryByMemberAndItem.values()],
       recentRedemptions,
+      oneDrinkTargetCounts: wallets
+        .map((wallet) => ({
+          userId: wallet.userId,
+          user: wallet.user,
+          count: oneDrinkCountByUserId.get(wallet.userId) ?? 0,
+        }))
+        .sort(
+          (left, right) =>
+            right.count - left.count || left.user.nickname.localeCompare(right.user.nickname, "ko"),
+        ),
       tapRewardStatus: {
         rewardedToday: Math.min(tapRewardedToday, 3),
         remainingToday: Math.max(0, 3 - tapRewardedToday),
@@ -345,7 +391,7 @@ export class PointsService {
         oddEven: {
           patterns: ["좌4홀", "우3홀", "좌3짝", "우4짝"],
           payouts: ladderPayouts,
-          payoutBasis: "배수만큼 순이익 지급 후 판돈 별도 반환",
+          payoutBasis: "판돈을 포함한 총 지급액에 배수 적용",
           selections: "출발 좌·우, 가로줄 3·4개, 도착 홀·짝을 단일 또는 조합으로 선택",
         },
         snailRace: { winProbability: "25%", payout: "원금 포함 4배", snails: 4 },
@@ -754,6 +800,10 @@ export class PointsService {
       await this.access.requireMembership(input.targetUserId, tripId);
     }
 
+    if (effect.action === "BLOCK_ONE_DRINK") {
+      return this.blockOneDrinkTarget(userId, tripId, grant);
+    }
+
     return this.prisma.$transaction(async (transaction) => {
       const claimed = await transaction.rewardRedemption.updateMany({
         where: { id: grant.id, status: "PENDING" },
@@ -819,6 +869,109 @@ export class PointsService {
           authorId: userId,
           body: `${grant.buyer.nickname}님이 지급받은 아이템 ‘${grant.rewardItem.title}’을 사용했습니다.`,
           clientMessageId: `reward-use-${grant.id}`,
+        },
+      });
+      return redemption;
+    });
+  }
+
+  private async blockOneDrinkTarget(
+    userId: string,
+    tripId: string,
+    shield: Prisma.RewardRedemptionGetPayload<{
+      include: {
+        rewardItem: true;
+        buyer: { select: { id: true; nickname: true } };
+        target: { select: { id: true; nickname: true } };
+      };
+    }>,
+  ) {
+    return this.prisma.$transaction(async (transaction) => {
+      const claimedShield = await transaction.rewardRedemption.updateMany({
+        where: { id: shield.id, tripId, buyerId: userId, status: "PENDING" },
+        data: { status: "APPLIED", resolvedAt: new Date() },
+      });
+      if (claimedShield.count === 0) {
+        throw new ConflictException({
+          code: "GRANTED_REWARD_ALREADY_USED",
+          message: "이미 사용한 아이템입니다.",
+        });
+      }
+
+      const targetRedemption = await transaction.rewardRedemption.findFirst({
+        where: {
+          tripId,
+          targetId: userId,
+          status: "APPLIED",
+          rewardItem: { seedKey: "one-drink-target" },
+        },
+        include: {
+          rewardItem: true,
+          buyer: { select: { id: true, nickname: true } },
+          target: { select: { id: true, nickname: true } },
+        },
+        orderBy: [{ resolvedAt: "desc" }, { createdAt: "desc" }],
+      });
+      if (!targetRedemption) {
+        throw new ConflictException({
+          code: "ONE_DRINK_TARGET_NOT_FOUND",
+          message: "방어할 한 잔 지목이 없습니다.",
+        });
+      }
+
+      const blocked = await transaction.rewardRedemption.updateMany({
+        where: { id: targetRedemption.id, status: "APPLIED", targetId: userId },
+        data: {
+          status: "REJECTED",
+          resolvedAt: new Date(),
+          outcome: {
+            ...(typeof targetRedemption.outcome === "object" &&
+            targetRedemption.outcome !== null &&
+            !Array.isArray(targetRedemption.outcome)
+              ? targetRedemption.outcome
+              : {}),
+            blocked: true,
+            blockedByRewardId: shield.id,
+          },
+        },
+      });
+      if (blocked.count === 0) {
+        throw new ConflictException({
+          code: "ONE_DRINK_TARGET_ALREADY_BLOCKED",
+          message: "이미 방어된 한 잔 지목입니다.",
+        });
+      }
+
+      const previousShieldOutcome =
+        typeof shield.outcome === "object" &&
+        shield.outcome !== null &&
+        !Array.isArray(shield.outcome)
+          ? shield.outcome
+          : {};
+      const redemption = await transaction.rewardRedemption.update({
+        where: { id: shield.id },
+        data: {
+          outcome: {
+            ...previousShieldOutcome,
+            action: "BLOCK_ONE_DRINK",
+            blockedRedemptionId: targetRedemption.id,
+            blockedBuyerId: targetRedemption.buyerId,
+            usedFromGrant: true,
+          },
+        },
+        include: {
+          rewardItem: true,
+          buyer: { select: { id: true, nickname: true } },
+          target: { select: { id: true, nickname: true } },
+        },
+      });
+      await transaction.chatMessage.create({
+        data: {
+          id: newId(),
+          tripId,
+          authorId: userId,
+          body: `🛡️ ${shield.buyer.nickname}님이 한 잔 방어권을 사용해 ${targetRedemption.buyer.nickname}님의 지목 1회를 막았습니다.`,
+          clientMessageId: `one-drink-shield-${shield.id}`,
         },
       });
       return redemption;
@@ -1174,7 +1327,7 @@ export class PointsService {
       (input.startChoice === undefined || input.startChoice === startSide) &&
       (input.rungCountChoice === undefined || input.rungCountChoice === rungCount) &&
       (input.endChoice === undefined || input.endChoice === answer);
-    const payout = won ? payoutWithProfitMultiplier(input.wager, payoutRule.multiplier) : 0;
+    const payout = won ? payoutWithTotalMultiplier(input.wager, payoutRule.multiplier) : 0;
     return this.finishWagerRound(
       userId,
       tripId,

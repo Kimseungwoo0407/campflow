@@ -19,6 +19,7 @@ import {
   Target,
   Ticket,
   Trophy,
+  Wine,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -95,6 +96,13 @@ function rewardRequiresTarget(reward: RewardItem): boolean {
       "targetRequired" in reward.effect &&
       reward.effect.targetRequired === true)
   );
+}
+
+function rewardAction(reward: RewardItem): string | undefined {
+  if (typeof reward.effect !== "object" || reward.effect === null || !("action" in reward.effect)) {
+    return undefined;
+  }
+  return typeof reward.effect.action === "string" ? reward.effect.action : undefined;
 }
 
 export function TripPointsPage() {
@@ -252,6 +260,11 @@ export function TripPointsPage() {
   const data = dashboard.data;
   const myRewardInventory = data.rewardInventory.filter(
     (entry) => entry.userId === currentUser?.id,
+  );
+  const myOneDrinkTargetCount =
+    data.oneDrinkTargetCounts.find((entry) => entry.userId === currentUser?.id)?.count ?? 0;
+  const hasTargetableReward = myRewardInventory.some((entry) =>
+    rewardRequiresTarget(entry.rewardItem),
   );
   const error =
     checkIn.error ??
@@ -653,6 +666,31 @@ export function TripPointsPage() {
         </Card>
       </section>
 
+      <section className="workspace-section one-drink-status-section">
+        <div className="section-heading-row">
+          <div>
+            <h2>
+              <Wine size={19} /> 한 잔 지목 현황
+            </h2>
+            <small>유효한 지목만 집계되며, 방어권을 쓰면 가장 최근 지목 1회가 차감됩니다.</small>
+          </div>
+          {myOneDrinkTargetCount > 0 && (
+            <span className="one-drink-my-status">내 지목 {myOneDrinkTargetCount}잔</span>
+          )}
+        </div>
+        <div className="one-drink-count-grid" aria-label="멤버별 한 잔 지목 수">
+          {data.oneDrinkTargetCounts.map((entry) => (
+            <Card
+              className={`one-drink-count-card${entry.userId === currentUser?.id ? " is-me" : ""}${entry.count > 0 ? " has-drinks" : ""}`}
+              key={entry.userId}
+            >
+              <span>{entry.user.nickname}</span>
+              <strong>{entry.count}잔</strong>
+            </Card>
+          ))}
+        </div>
+      </section>
+
       <section className="workspace-section">
         <div className="section-heading-row">
           <h2>활동 보상표</h2>
@@ -679,27 +717,31 @@ export function TripPointsPage() {
                 않습니다.
               </small>
             </div>
-            <select
-              className="input target-select"
-              value={targetUserId}
-              onChange={(event) => setTargetUserId(event.target.value)}
-              aria-label="지급 아이템 대상"
-            >
-              <option value="">지목할 친구 선택</option>
-              {data.balanceLeaderboard
-                .filter((wallet) => wallet.userId !== currentUser?.id)
-                .map((wallet) => (
-                  <option key={wallet.userId} value={wallet.userId}>
-                    {wallet.user.nickname}
-                  </option>
-                ))}
-            </select>
+            {hasTargetableReward && (
+              <select
+                className="input target-select"
+                value={targetUserId}
+                onChange={(event) => setTargetUserId(event.target.value)}
+                aria-label="지급 아이템 대상"
+              >
+                <option value="">지목할 친구 선택</option>
+                {data.balanceLeaderboard
+                  .filter((wallet) => wallet.userId !== currentUser?.id)
+                  .map((wallet) => (
+                    <option key={wallet.userId} value={wallet.userId}>
+                      {wallet.user.nickname}
+                    </option>
+                  ))}
+              </select>
+            )}
           </div>
           <div className="reward-grid">
             {myRewardInventory.map((entry) => (
               <Card className="reward-card granted-reward-card" key={entry.id}>
-                <Gift />
-                <span className="badge">보유 아이템</span>
+                {entry.rewardItem.type === "PROTECTION" ? <Shield /> : <Gift />}
+                <span className="badge">
+                  {entry.rewardItem.type === "PROTECTION" ? "방어 아이템" : "보유 아이템"}
+                </span>
                 <h3>{entry.rewardItem.title}</h3>
                 <p>{entry.rewardItem.description}</p>
                 <div>
@@ -709,11 +751,13 @@ export function TripPointsPage() {
                       disabled={
                         useGrantedReward.isPending ||
                         sellReward.isPending ||
-                        (rewardRequiresTarget(entry.rewardItem) && !targetUserId)
+                        (rewardRequiresTarget(entry.rewardItem) && !targetUserId) ||
+                        (rewardAction(entry.rewardItem) === "BLOCK_ONE_DRINK" &&
+                          myOneDrinkTargetCount === 0)
                       }
                       onClick={() => useGrantedReward.mutate(entry)}
                     >
-                      사용
+                      {rewardAction(entry.rewardItem) === "BLOCK_ONE_DRINK" ? "1회 방어" : "사용"}
                     </Button>
                     <Button
                       variant="secondary"
@@ -756,7 +800,11 @@ export function TripPointsPage() {
                 <Gift />
               )}
               <span className="badge">
-                {reward.type === "TARGET_PENALTY" ? "공격 아이템" : "현장 권한"}
+                {reward.type === "TARGET_PENALTY"
+                  ? "공격 아이템"
+                  : reward.type === "PROTECTION"
+                    ? "방어 아이템"
+                    : "현장 권한"}
               </span>
               <h3>{reward.title}</h3>
               <p>{reward.description}</p>
@@ -827,9 +875,13 @@ export function TripPointsPage() {
                 <b>
                   {redemption.status === "SOLD"
                     ? `판매 +${point(Math.floor((redemption.cost * 70) / 100))}`
-                    : redemption.target
-                      ? `→ ${redemption.target.nickname}`
-                      : "대상 없음"}
+                    : redemption.status === "REJECTED"
+                      ? `방어됨${redemption.target ? ` → ${redemption.target.nickname}` : ""}`
+                      : redemption.outcome.action === "BLOCK_ONE_DRINK"
+                        ? "지목 1회 방어"
+                        : redemption.target
+                          ? `→ ${redemption.target.nickname}`
+                          : "대상 없음"}
                 </b>
               </div>
             ))}

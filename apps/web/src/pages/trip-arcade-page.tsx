@@ -165,8 +165,7 @@ export function TripArcadePage() {
   });
   const oddEvenHistory = useQuery({
     queryKey: ["odd-even-rounds", tripId],
-    queryFn: () =>
-      apiRequest<GameRoundHistory>(`trips/${tripId}/games/odd-even/rounds`),
+    queryFn: () => apiRequest<GameRoundHistory>(`trips/${tripId}/games/odd-even/rounds`),
     enabled: gameId === "odd-even",
   });
 
@@ -567,194 +566,196 @@ export function TripArcadePage() {
       {selectedGame.id === "odd-even" && (
         <div className="ladder-game-layout">
           <section className="arcade-machine ladder-machine">
-          <div className="ladder-picks">
-            <div>
-              <span>출발점</span>
-              <div className="machine-choice-row">
-                <button
-                  className={ladderStartChoice === "LEFT" ? "active" : ""}
-                  type="button"
-                  aria-pressed={ladderStartChoice === "LEFT"}
-                  onClick={() =>
-                    setLadderStartChoice((choice) => (choice === "LEFT" ? null : "LEFT"))
-                  }
-                  disabled={busy}
-                >
-                  좌 LEFT
-                </button>
-                <button
-                  className={ladderStartChoice === "RIGHT" ? "active" : ""}
-                  type="button"
-                  aria-pressed={ladderStartChoice === "RIGHT"}
-                  onClick={() =>
-                    setLadderStartChoice((choice) => (choice === "RIGHT" ? null : "RIGHT"))
-                  }
-                  disabled={busy}
-                >
-                  우 RIGHT
-                </button>
-              </div>
-            </div>
-            <div>
-              <span>가로줄 수</span>
-              <div className="machine-choice-row">
-                {([3, 4] as const).map((count) => (
+            <div className="ladder-picks">
+              <div>
+                <span>출발점</span>
+                <div className="machine-choice-row">
                   <button
-                    className={ladderRungChoice === count ? "active" : ""}
+                    className={ladderStartChoice === "LEFT" ? "active" : ""}
                     type="button"
-                    key={count}
-                    aria-pressed={ladderRungChoice === count}
+                    aria-pressed={ladderStartChoice === "LEFT"}
                     onClick={() =>
-                      setLadderRungChoice((choice) => (choice === count ? null : count))
+                      setLadderStartChoice((choice) => (choice === "LEFT" ? null : "LEFT"))
                     }
                     disabled={busy}
                   >
-                    {count}줄
+                    좌 LEFT
                   </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <span>도착 결과</span>
-              <div className="machine-choice-row">
-                <button
-                  className={oddChoice === "ODD" ? "active" : ""}
-                  type="button"
-                  aria-pressed={oddChoice === "ODD"}
-                  onClick={() => setOddChoice((choice) => (choice === "ODD" ? null : "ODD"))}
-                  disabled={busy}
-                >
-                  홀 ODD
-                </button>
-                <button
-                  className={oddChoice === "EVEN" ? "active" : ""}
-                  type="button"
-                  aria-pressed={oddChoice === "EVEN"}
-                  onClick={() => setOddChoice((choice) => (choice === "EVEN" ? null : "EVEN"))}
-                  disabled={busy}
-                >
-                  짝 EVEN
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className={`ladder-bet-summary ${!ladderCombinationValid ? "is-invalid" : ""}`}>
-            {ladderSelectedCount === 0 ? (
-              <span>원하는 항목을 하나 이상 선택하세요.</span>
-            ) : ladderCombinationValid ? (
-              <>
-                <span>내 선택 · {ladderSelectionLabel}</span>
-                <strong>×{ladderPayoutMultiplier.toFixed(1)}</strong>
-                <b>
-                  적중 확률 {ladderWinProbability} · 순이익{" "}
-                  {point(Math.floor(wager * ladderPayoutMultiplier))} + 판돈 반환
-                </b>
-              </>
-            ) : (
-              <span>이 조합은 실제 사다리로 이어지지 않습니다. 홀·짝 선택을 바꿔 주세요.</span>
-            )}
-          </div>
-          <div className="ladder-pattern-guide" aria-label="가능한 전체 사다리 패턴">
-            <span>가능 패턴</span>
-            {[
-              ["좌4홀", "왼쪽 출발 · 4줄 · 홀 도착"],
-              ["우3홀", "오른쪽 출발 · 3줄 · 홀 도착"],
-              ["좌3짝", "왼쪽 출발 · 3줄 · 짝 도착"],
-              ["우4짝", "오른쪽 출발 · 4줄 · 짝 도착"],
-            ].map(([pattern, label]) => (
-              <b key={pattern} title={label}>
-                {pattern}
-              </b>
-            ))}
-          </div>
-          <div className={`ladder-board ${busy ? "is-running" : ""}`}>
-            <div className="ladder-labels ladder-labels--top">
-              <span className={animationResult && ladderStartSide === "LEFT" ? "is-start" : ""}>
-                좌 LEFT {animationResult && ladderStartSide === "LEFT" ? "●" : ""}
-              </span>
-              <span className={animationResult && ladderStartSide === "RIGHT" ? "is-start" : ""}>
-                우 RIGHT {animationResult && ladderStartSide === "RIGHT" ? "●" : ""}
-              </span>
-            </div>
-            <svg viewBox="0 0 300 360" role="img" aria-label="홀짝 사다리 진행 화면">
-              <path d="M76 28 V332 M224 28 V332" className="ladder-rail" />
-              {!animationResult && (
-                <g className="ladder-secret" aria-hidden="true">
-                  <rect x="89" y="48" width="122" height="264" rx="18" />
-                  <text x="150" y="174">
-                    ?
-                  </text>
-                  <text x="150" y="205" className="ladder-secret-label">
-                    가로줄 비공개
-                  </text>
-                </g>
-              )}
-              {animationResult && (
-                <g key={animationResult.id}>
-                  <path d={ladderRungsPath} className="ladder-rungs ladder-rungs--revealed" />
-                  <path d={ladderPath} className="ladder-route" pathLength="1" />
-                  <circle key={animationResult.id} r="10" className="ladder-ball">
-                    <animateMotion begin="0.7s" dur="3.8s" fill="freeze" path={ladderPath} />
-                  </circle>
-                </g>
-              )}
-            </svg>
-            <div className="ladder-labels">
-              <span className={animationResult && ladderAnswer === "ODD" ? "is-result" : ""}>
-                홀 ODD {animationResult && ladderAnswer === "ODD" ? "●" : ""}
-              </span>
-              <span className={animationResult && ladderAnswer === "EVEN" ? "is-result" : ""}>
-                짝 EVEN {animationResult && ladderAnswer === "EVEN" ? "●" : ""}
-              </span>
-            </div>
-          </div>
-          {stage === "idle" && (
-            <Button
-              disabled={!canWager || ladderSelectedCount === 0 || !ladderCombinationValid}
-              onClick={() =>
-                play.mutate({
-                  path: "odd-even",
-                  body: {
-                    ...(ladderStartChoice ? { startChoice: ladderStartChoice } : {}),
-                    ...(ladderRungChoice ? { rungCountChoice: ladderRungChoice } : {}),
-                    ...(oddChoice ? { endChoice: oddChoice } : {}),
-                    wager,
-                  },
-                  duration: 4_900,
-                })
-              }
-            >
-              <Dices size={18} /> {point(wager)} · {ladderSelectionLabel || "선택 필요"} 배팅
-            </Button>
-          )}
-          {busy && (
-            <p className="machine-status">
-              <RotateCw size={17} />
-              {animationResult ? " 숨은 사다리를 따라 내려가는 중…" : " 사다리를 비공개로 섞는 중…"}
-            </p>
-          )}
-          {revealedResult && (
-            <>
-              <div className="number-reveal">
-                <div>
-                  <span>최종 사다리 패턴</span>
-                  <strong>{ladderActualPattern}</strong>
-                  <b>실제 경로 일치</b>
+                  <button
+                    className={ladderStartChoice === "RIGHT" ? "active" : ""}
+                    type="button"
+                    aria-pressed={ladderStartChoice === "RIGHT"}
+                    onClick={() =>
+                      setLadderStartChoice((choice) => (choice === "RIGHT" ? null : "RIGHT"))
+                    }
+                    disabled={busy}
+                  >
+                    우 RIGHT
+                  </button>
                 </div>
-                <div>
-                  <span>내 선택</span>
-                  <strong>{ladderSelectionLabel}</strong>
+              </div>
+              <div>
+                <span>가로줄 수</span>
+                <div className="machine-choice-row">
+                  {([3, 4] as const).map((count) => (
+                    <button
+                      className={ladderRungChoice === count ? "active" : ""}
+                      type="button"
+                      key={count}
+                      aria-pressed={ladderRungChoice === count}
+                      onClick={() =>
+                        setLadderRungChoice((choice) => (choice === count ? null : count))
+                      }
+                      disabled={busy}
+                    >
+                      {count}줄
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <span>도착 결과</span>
+                <div className="machine-choice-row">
+                  <button
+                    className={oddChoice === "ODD" ? "active" : ""}
+                    type="button"
+                    aria-pressed={oddChoice === "ODD"}
+                    onClick={() => setOddChoice((choice) => (choice === "ODD" ? null : "ODD"))}
+                    disabled={busy}
+                  >
+                    홀 ODD
+                  </button>
+                  <button
+                    className={oddChoice === "EVEN" ? "active" : ""}
+                    type="button"
+                    aria-pressed={oddChoice === "EVEN"}
+                    onClick={() => setOddChoice((choice) => (choice === "EVEN" ? null : "EVEN"))}
+                    disabled={busy}
+                  >
+                    짝 EVEN
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className={`ladder-bet-summary ${!ladderCombinationValid ? "is-invalid" : ""}`}>
+              {ladderSelectedCount === 0 ? (
+                <span>원하는 항목을 하나 이상 선택하세요.</span>
+              ) : ladderCombinationValid ? (
+                <>
+                  <span>내 선택 · {ladderSelectionLabel}</span>
+                  <strong>×{ladderPayoutMultiplier.toFixed(1)}</strong>
                   <b>
-                    순이익 ×{numberResult(revealedResult.result, "payoutMultiplier").toFixed(1)}
+                    적중 확률 {ladderWinProbability} · 총 지급{" "}
+                    {point(Math.floor(wager * ladderPayoutMultiplier))} (판돈 포함)
                   </b>
-                </div>
+                </>
+              ) : (
+                <span>이 조합은 실제 사다리로 이어지지 않습니다. 홀·짝 선택을 바꿔 주세요.</span>
+              )}
+            </div>
+            <div className="ladder-pattern-guide" aria-label="가능한 전체 사다리 패턴">
+              <span>가능 패턴</span>
+              {[
+                ["좌4홀", "왼쪽 출발 · 4줄 · 홀 도착"],
+                ["우3홀", "오른쪽 출발 · 3줄 · 홀 도착"],
+                ["좌3짝", "왼쪽 출발 · 3줄 · 짝 도착"],
+                ["우4짝", "오른쪽 출발 · 4줄 · 짝 도착"],
+              ].map(([pattern, label]) => (
+                <b key={pattern} title={label}>
+                  {pattern}
+                </b>
+              ))}
+            </div>
+            <div className={`ladder-board ${busy ? "is-running" : ""}`}>
+              <div className="ladder-labels ladder-labels--top">
+                <span className={animationResult && ladderStartSide === "LEFT" ? "is-start" : ""}>
+                  좌 LEFT {animationResult && ladderStartSide === "LEFT" ? "●" : ""}
+                </span>
+                <span className={animationResult && ladderStartSide === "RIGHT" ? "is-start" : ""}>
+                  우 RIGHT {animationResult && ladderStartSide === "RIGHT" ? "●" : ""}
+                </span>
               </div>
-              <ResultBanner round={revealedResult} />
-              <Button variant="secondary" onClick={resetRound}>
-                다시 하기
+              <svg viewBox="0 0 300 360" role="img" aria-label="홀짝 사다리 진행 화면">
+                <path d="M76 28 V332 M224 28 V332" className="ladder-rail" />
+                {!animationResult && (
+                  <g className="ladder-secret" aria-hidden="true">
+                    <rect x="89" y="48" width="122" height="264" rx="18" />
+                    <text x="150" y="174">
+                      ?
+                    </text>
+                    <text x="150" y="205" className="ladder-secret-label">
+                      가로줄 비공개
+                    </text>
+                  </g>
+                )}
+                {animationResult && (
+                  <g key={animationResult.id}>
+                    <path d={ladderRungsPath} className="ladder-rungs ladder-rungs--revealed" />
+                    <path d={ladderPath} className="ladder-route" pathLength="1" />
+                    <circle key={animationResult.id} r="10" className="ladder-ball">
+                      <animateMotion begin="0.7s" dur="3.8s" fill="freeze" path={ladderPath} />
+                    </circle>
+                  </g>
+                )}
+              </svg>
+              <div className="ladder-labels">
+                <span className={animationResult && ladderAnswer === "ODD" ? "is-result" : ""}>
+                  홀 ODD {animationResult && ladderAnswer === "ODD" ? "●" : ""}
+                </span>
+                <span className={animationResult && ladderAnswer === "EVEN" ? "is-result" : ""}>
+                  짝 EVEN {animationResult && ladderAnswer === "EVEN" ? "●" : ""}
+                </span>
+              </div>
+            </div>
+            {stage === "idle" && (
+              <Button
+                disabled={!canWager || ladderSelectedCount === 0 || !ladderCombinationValid}
+                onClick={() =>
+                  play.mutate({
+                    path: "odd-even",
+                    body: {
+                      ...(ladderStartChoice ? { startChoice: ladderStartChoice } : {}),
+                      ...(ladderRungChoice ? { rungCountChoice: ladderRungChoice } : {}),
+                      ...(oddChoice ? { endChoice: oddChoice } : {}),
+                      wager,
+                    },
+                    duration: 4_900,
+                  })
+                }
+              >
+                <Dices size={18} /> {point(wager)} · {ladderSelectionLabel || "선택 필요"} 배팅
               </Button>
-            </>
-          )}
+            )}
+            {busy && (
+              <p className="machine-status">
+                <RotateCw size={17} />
+                {animationResult
+                  ? " 숨은 사다리를 따라 내려가는 중…"
+                  : " 사다리를 비공개로 섞는 중…"}
+              </p>
+            )}
+            {revealedResult && (
+              <>
+                <div className="number-reveal">
+                  <div>
+                    <span>최종 사다리 패턴</span>
+                    <strong>{ladderActualPattern}</strong>
+                    <b>실제 경로 일치</b>
+                  </div>
+                  <div>
+                    <span>내 선택</span>
+                    <strong>{ladderSelectionLabel}</strong>
+                    <b>
+                      총 지급 ×{numberResult(revealedResult.result, "payoutMultiplier").toFixed(1)}
+                    </b>
+                  </div>
+                </div>
+                <ResultBanner round={revealedResult} />
+                <Button variant="secondary" onClick={resetRound}>
+                  다시 하기
+                </Button>
+              </>
+            )}
           </section>
           <LadderHistoryPanel
             history={oddEvenHistory.data}

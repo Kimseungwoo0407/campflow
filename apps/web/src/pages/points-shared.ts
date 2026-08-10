@@ -60,9 +60,16 @@ export interface RewardRedemption {
   status: "APPLIED" | "PENDING" | "ACCEPTED" | "REJECTED" | "SOLD";
   createdAt: string;
   resolvedAt: string | null;
+  outcome: Record<string, unknown>;
   rewardItem: RewardItem;
   buyer: UserRef;
   target: UserRef | null;
+}
+
+export interface OneDrinkTargetCount {
+  userId: string;
+  user: UserRef;
+  count: number;
 }
 
 export interface RewardInventoryEntry {
@@ -129,6 +136,7 @@ export interface PointsDashboard {
   rewards: RewardItem[];
   rewardInventory: RewardInventoryEntry[];
   recentRedemptions: RewardRedemption[];
+  oneDrinkTargetCounts: OneDrinkTargetCount[];
   tapRewardStatus: {
     rewardedToday: number;
     remainingToday: number;

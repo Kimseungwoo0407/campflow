@@ -2,6 +2,7 @@ import {
   expectedRpsNetMultiplier,
   maximumConsecutiveWins,
   payoutWithProfitMultiplier,
+  payoutWithTotalMultiplier,
   rewardResaleValue,
   rpsOutcomeProbabilities,
 } from "./points.service";
@@ -15,12 +16,12 @@ describe("포인트 게임 순이익 배수", () => {
     expect(credited - wager).toBe(50);
   });
 
-  it("사다리 배당도 판돈과 순이익을 분리한다", () => {
-    const wager = 50;
-    const credited = payoutWithProfitMultiplier(wager, 1.9);
+  it("사다리는 판돈에 배수를 곱한 금액만 총 지급한다", () => {
+    const wager = 500;
+    const credited = payoutWithTotalMultiplier(wager, 1.9);
 
-    expect(credited).toBe(145);
-    expect(credited - wager).toBe(95);
+    expect(credited).toBe(950);
+    expect(credited - wager).toBe(450);
   });
 
   it("짱깸보는 패배 확률이 가장 높고 장기 기대값이 음수다", () => {
