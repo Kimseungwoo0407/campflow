@@ -221,6 +221,12 @@ export const pollVoteSchema = z
   })
   .strict();
 
+export const createPollCommentSchema = z
+  .object({
+    body: z.string().trim().min(1).max(1000),
+  })
+  .strict();
+
 export const createItineraryItemSchema = z
   .object({
     dayId: z.string().trim().min(10).max(40),
@@ -311,6 +317,8 @@ export const createMealSchema = z
       .default([]),
   })
   .strict();
+
+export const updateMealSchema = createMealSchema;
 
 export const createVehicleSchema = z
   .object({
@@ -509,6 +517,7 @@ export type CreateManualCandidateInput = z.infer<typeof createManualCandidateSch
 export type UpdateCandidateInput = z.infer<typeof updateCandidateSchema>;
 export type CreatePollInput = z.infer<typeof createPollSchema>;
 export type PollVoteInput = z.infer<typeof pollVoteSchema>;
+export type CreatePollCommentInput = z.infer<typeof createPollCommentSchema>;
 export type CreateItineraryItemInput = z.infer<typeof createItineraryItemSchema>;
 export type UpdateItineraryItemInput = z.infer<typeof updateItineraryItemSchema>;
 export type CreatePostInput = z.infer<typeof createPostSchema>;
@@ -517,6 +526,7 @@ export type CreateMessageInput = z.infer<typeof createMessageSchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type CreateMealInput = z.infer<typeof createMealSchema>;
+export type UpdateMealInput = z.infer<typeof updateMealSchema>;
 export type CreateVehicleInput = z.infer<typeof createVehicleSchema>;
 export type UpdateVehicleInput = z.infer<typeof updateVehicleSchema>;
 export type CreateFileUploadInput = z.infer<typeof createFileUploadSchema>;

@@ -1,6 +1,12 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type {
   CreateItineraryItemInput,
+  CreatePollCommentInput,
   CreatePollInput,
   PollVoteInput,
   UpdateItineraryItemInput,
@@ -24,20 +30,25 @@ export class PlanningService {
   ) {}
 
   async polls(userId: string, tripId: string) {
-    await this.access.requireMembership(userId, tripId);
+    const membership = await this.access.requireMembership(userId, tripId);
     const polls = await this.prisma.poll.findMany({
       where: { tripId },
       include: {
         createdBy: { select: { id: true, nickname: true } },
         votes: true,
+        comments: {
+          where: { deletedAt: null },
+          include: { author: { select: { id: true, nickname: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
-    return polls.map((poll) => this.presentPoll(poll, userId));
+    return polls.map((poll) => this.presentPoll(poll, userId, membership.role === "MANAGER"));
   }
 
   async createPoll(userId: string, tripId: string, input: CreatePollInput) {
-    await this.access.requireWriter(userId, tripId);
+    const membership = await this.access.requireWriter(userId, tripId);
     const options = input.optionLabels.map((label) => ({ id: newId(), label }));
     const poll = await this.prisma.poll.create({
       data: {
@@ -55,13 +66,18 @@ export class PlanningService {
       include: {
         createdBy: { select: { id: true, nickname: true } },
         votes: true,
+        comments: {
+          where: { deletedAt: null },
+          include: { author: { select: { id: true, nickname: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
     await this.prisma.trip.updateMany({
       where: { id: tripId, status: "SEARCHING" },
       data: { status: "VOTING", version: { increment: 1 } },
     });
-    return this.presentPoll(poll, userId);
+    return this.presentPoll(poll, userId, membership.role === "MANAGER");
   }
 
   async vote(userId: string, pollId: string, input: PollVoteInput) {
@@ -70,7 +86,7 @@ export class PlanningService {
       include: { votes: true, createdBy: { select: { id: true, nickname: true } } },
     });
     if (!poll) throw this.pollNotFound();
-    await this.access.requireMembership(userId, poll.tripId);
+    const membership = await this.access.requireMembership(userId, poll.tripId);
     if (poll.status !== "OPEN" || (poll.closesAt && poll.closesAt <= new Date())) {
       throw new ConflictException({
         code: "POLL_CLOSED",
@@ -105,12 +121,53 @@ export class PlanningService {
     });
     const refreshed = await this.prisma.poll.findUniqueOrThrow({
       where: { id: pollId },
-      include: { votes: true, createdBy: { select: { id: true, nickname: true } } },
+      include: {
+        votes: true,
+        createdBy: { select: { id: true, nickname: true } },
+        comments: {
+          where: { deletedAt: null },
+          include: { author: { select: { id: true, nickname: true } } },
+          orderBy: { createdAt: "asc" },
+        },
+      },
     });
     if (!existingVote) {
       await this.points.awardActivity(poll.tripId, userId, "POLL", pollId);
     }
-    return this.presentPoll(refreshed, userId);
+    return this.presentPoll(refreshed, userId, membership.role === "MANAGER");
+  }
+
+  async addPollComment(userId: string, pollId: string, input: CreatePollCommentInput) {
+    const poll = await this.prisma.poll.findUnique({
+      where: { id: pollId },
+      select: { tripId: true },
+    });
+    if (!poll) throw this.pollNotFound();
+    await this.access.requireMembership(userId, poll.tripId);
+    return this.prisma.pollComment.create({
+      data: { id: newId(), pollId, authorId: userId, body: input.body },
+      include: { author: { select: { id: true, nickname: true } } },
+    });
+  }
+
+  async removePollComment(userId: string, commentId: string) {
+    const comment = await this.prisma.pollComment.findUnique({
+      where: { id: commentId },
+      include: { poll: { select: { tripId: true } } },
+    });
+    if (!comment || comment.deletedAt) throw this.pollCommentNotFound();
+    const membership = await this.access.requireMembership(userId, comment.poll.tripId);
+    if (comment.authorId !== userId && membership.role !== "MANAGER") {
+      throw new ForbiddenException({
+        code: "POLL_COMMENT_DELETE_FORBIDDEN",
+        message: "본인이 작성한 의견만 삭제할 수 있습니다.",
+      });
+    }
+    await this.prisma.pollComment.update({
+      where: { id: commentId },
+      data: { deletedAt: new Date() },
+    });
+    return { deleted: true };
   }
 
   async closePoll(userId: string, pollId: string) {
@@ -120,7 +177,15 @@ export class PlanningService {
     const updated = await this.prisma.poll.update({
       where: { id: pollId },
       data: { status: "CLOSED" },
-      include: { votes: true, createdBy: { select: { id: true, nickname: true } } },
+      include: {
+        votes: true,
+        createdBy: { select: { id: true, nickname: true } },
+        comments: {
+          where: { deletedAt: null },
+          include: { author: { select: { id: true, nickname: true } } },
+          orderBy: { createdAt: "asc" },
+        },
+      },
     });
     await this.prisma.decisionLog.create({
       data: {
@@ -132,7 +197,7 @@ export class PlanningService {
         snapshot: this.pollResults(updated),
       },
     });
-    return this.presentPoll(updated, userId);
+    return this.presentPoll(updated, userId, true);
   }
 
   async itinerary(userId: string, tripId: string) {
@@ -335,8 +400,16 @@ export class PlanningService {
       createdAt: Date;
       createdBy: { id: string; nickname: string };
       votes: Array<{ userId: string; payload: unknown; revision: number; castAt: Date }>;
+      comments: Array<{
+        id: string;
+        authorId: string;
+        body: string;
+        createdAt: Date;
+        author: { id: string; nickname: string };
+      }>;
     },
     userId: string,
+    canManage: boolean,
   ) {
     const resultsVisible = poll.resultsVisibility === "ALWAYS" || poll.status === "CLOSED";
     return {
@@ -344,6 +417,11 @@ export class PlanningService {
       voteCount: poll.votes.length,
       myVote: poll.votes.find((vote) => vote.userId === userId)?.payload ?? null,
       results: resultsVisible ? this.pollResults(poll) : null,
+      canClose: canManage && poll.status === "OPEN",
+      comments: poll.comments.map((comment) => ({
+        ...comment,
+        canDelete: canManage || comment.authorId === userId,
+      })),
       votes: undefined,
     };
   }
@@ -362,7 +440,7 @@ export class PlanningService {
     }
     return options.map((option) => ({
       ...option,
-      votes: counts.get(option.id) ?? 0,
+      count: counts.get(option.id) ?? 0,
     }));
   }
 
@@ -398,6 +476,13 @@ export class PlanningService {
     return new NotFoundException({
       code: "POLL_NOT_FOUND",
       message: "투표를 찾을 수 없습니다.",
+    });
+  }
+
+  private pollCommentNotFound() {
+    return new NotFoundException({
+      code: "POLL_COMMENT_NOT_FOUND",
+      message: "투표 의견을 찾을 수 없습니다.",
     });
   }
 

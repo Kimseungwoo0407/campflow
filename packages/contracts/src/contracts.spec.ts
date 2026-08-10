@@ -3,7 +3,9 @@ import {
   changePasswordSchema,
   createInviteSchema,
   createManualCandidateSchema,
+  createPollCommentSchema,
   updateExpenseSchema,
+  updateMealSchema,
   updateVehicleSchema,
   loginSchema,
   managerPointGrantSchema,
@@ -70,6 +72,28 @@ describe("공유 입력 계약", () => {
         passengerIds: ["01KYNMKK38GRX23J6HYQDV73NW"],
       }).success,
     ).toBe(true);
+  });
+
+  it("식단의 시간·담당자·재료를 수정한다", () => {
+    expect(
+      updateMealSchema.safeParse({
+        mealAt: "2026-08-29T09:00:00.000Z",
+        menu: "바비큐와 라면",
+        note: "매운맛과 순한맛 준비",
+        assigneeId: "01KYNMKJWRDZXX5C6E68TBNK1X",
+        ingredients: [
+          { name: "삼겹살", quantity: 2, unit: "kg" },
+          { name: "라면", quantity: 4, unit: "개" },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("투표 의견의 빈 내용을 허용하지 않는다", () => {
+    expect(createPollCommentSchema.safeParse({ body: "같이 출발하면 좋겠어요." }).success).toBe(
+      true,
+    );
+    expect(createPollCommentSchema.safeParse({ body: "   " }).success).toBe(false);
   });
 
   it("지출의 결제자·금액·분담자를 수정한다", () => {

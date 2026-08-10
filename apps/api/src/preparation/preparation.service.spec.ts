@@ -63,4 +63,50 @@ describe("PreparationService", () => {
       data: [{ vehicleId: "vehicle-1", userId: "member-user-02" }],
     });
   });
+
+  it("식단의 시간·메뉴·담당자·재료를 수정한다", async () => {
+    const updateMeal = jest.fn().mockResolvedValue({ id: "meal-1" });
+    const prisma = {
+      meal: {
+        findUnique: jest.fn().mockResolvedValue({ id: "meal-1", tripId: "trip-1" }),
+        update: updateMeal,
+      },
+      tripMember: { findFirst: jest.fn().mockResolvedValue({ tripId: "trip-1" }) },
+    } as unknown as PrismaService;
+    const access = {
+      requireWriter: jest.fn().mockResolvedValue({ role: "MEMBER" }),
+    } as unknown as TripAccessService;
+    const service = new PreparationService(
+      prisma,
+      access,
+      {} as ConfigService,
+      {} as PointsService,
+    );
+
+    await service.updateMeal("member-user-01", "meal-1", {
+      mealAt: "2026-08-29T09:00:00.000Z",
+      menu: "바비큐와 라면",
+      note: "채소도 준비",
+      assigneeId: "member-user-01",
+      ingredients: [
+        { name: "목살", quantity: 2, unit: "kg" },
+        { name: "라면", quantity: 4, unit: "개" },
+      ],
+    });
+
+    expect(updateMeal).toHaveBeenCalledWith({
+      where: { id: "meal-1" },
+      data: {
+        mealAt: new Date("2026-08-29T09:00:00.000Z"),
+        menu: "바비큐와 라면",
+        note: "채소도 준비",
+        assigneeId: "member-user-01",
+        ingredients: [
+          { name: "목살", quantity: 2, unit: "kg" },
+          { name: "라면", quantity: 4, unit: "개" },
+        ],
+      },
+      include: { assignee: { select: { id: true, nickname: true } } },
+    });
+  });
 });

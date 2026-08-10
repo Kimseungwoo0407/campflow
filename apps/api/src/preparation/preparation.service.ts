@@ -5,6 +5,7 @@ import type {
   CreateMealInput,
   CreateTaskInput,
   CreateVehicleInput,
+  UpdateMealInput,
   UpdateTaskInput,
   UpdateVehicleInput,
 } from "@campflow/contracts";
@@ -148,6 +149,24 @@ export class PreparationService {
         menu: input.menu,
         ...(input.note === undefined ? {} : { note: input.note }),
         ...(input.assigneeId === undefined ? {} : { assigneeId: input.assigneeId }),
+        ingredients: input.ingredients,
+      },
+      include: { assignee: { select: { id: true, nickname: true } } },
+    });
+  }
+
+  async updateMeal(userId: string, mealId: string, input: UpdateMealInput) {
+    const meal = await this.prisma.meal.findUnique({ where: { id: mealId } });
+    if (!meal) throw this.mealNotFound();
+    await this.access.requireWriter(userId, meal.tripId);
+    if (input.assigneeId) await this.assertTripMember(meal.tripId, input.assigneeId);
+    return this.prisma.meal.update({
+      where: { id: mealId },
+      data: {
+        mealAt: new Date(input.mealAt),
+        menu: input.menu,
+        note: input.note ?? null,
+        assigneeId: input.assigneeId ?? null,
         ingredients: input.ingredients,
       },
       include: { assignee: { select: { id: true, nickname: true } } },

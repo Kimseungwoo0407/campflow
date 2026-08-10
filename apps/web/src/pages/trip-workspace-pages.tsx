@@ -87,6 +87,14 @@ interface Poll {
   voteCount: number;
   myVote: { optionIds?: string[] } | null;
   results: PollResult[] | null;
+  canClose: boolean;
+  comments: Array<{
+    id: string;
+    body: string;
+    createdAt: string;
+    author: UserRef;
+    canDelete: boolean;
+  }>;
 }
 
 interface ItineraryItem {
@@ -123,6 +131,7 @@ interface Meal {
   id: string;
   mealAt: string;
   menu: string;
+  note: string | null;
   ingredients: unknown;
   assignee: UserRef | null;
 }
@@ -201,6 +210,14 @@ interface ExpenseFormValue {
   spentAt: string;
   payerId: string;
   participantUserIds: string[];
+}
+
+interface MealFormValue {
+  mealAt: string;
+  menu: string;
+  note: string;
+  assigneeId: string;
+  ingredients: Array<{ name: string; quantity: string; unit: string }>;
 }
 
 const expenseCategoryOptions: Array<{ value: ExpenseCategory; label: string }> = [
@@ -554,6 +571,180 @@ export function ExpenseForm({
           ))}
         </div>
         <small>한 명 이상 선택해 주세요.</small>
+      </fieldset>
+      <div className="record-editor__actions">
+        {onCancel && (
+          <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+            <X size={16} /> 취소
+          </Button>
+        )}
+        <Button type="submit" disabled={pending}>
+          <Save size={16} /> {pending ? "저장 중…" : submitLabel}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+export function MealForm({
+  value,
+  members,
+  pending,
+  submitLabel,
+  onChange,
+  onSubmit,
+  onCancel,
+}: {
+  value: MealFormValue;
+  members: Array<{ user: UserRef }>;
+  pending: boolean;
+  submitLabel: string;
+  onChange: (value: MealFormValue) => void;
+  onSubmit: () => void;
+  onCancel?: () => void;
+}) {
+  return (
+    <form
+      className="record-editor"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      <div className="record-editor__grid">
+        <label>
+          <span>메뉴</span>
+          <input
+            className="input"
+            value={value.menu}
+            onChange={(event) => onChange({ ...value, menu: event.target.value })}
+            maxLength={120}
+            required
+          />
+        </label>
+        <label>
+          <span>식사 일시</span>
+          <input
+            className="input"
+            type="datetime-local"
+            value={value.mealAt}
+            onChange={(event) => onChange({ ...value, mealAt: event.target.value })}
+            required
+          />
+        </label>
+        <label>
+          <span>담당자</span>
+          <select
+            className="input"
+            value={value.assigneeId}
+            onChange={(event) => onChange({ ...value, assigneeId: event.target.value })}
+          >
+            <option value="">담당자 미정</option>
+            {members.map((member) => (
+              <option key={member.user.id} value={member.user.id}>
+                {member.user.nickname}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>메모</span>
+          <input
+            className="input"
+            value={value.note}
+            onChange={(event) => onChange({ ...value, note: event.target.value })}
+            maxLength={500}
+            placeholder="선택 사항"
+          />
+        </label>
+      </div>
+      <fieldset className="ingredient-editor">
+        <legend>재료</legend>
+        <div className="ingredient-editor__list">
+          {value.ingredients.map((ingredient, index) => (
+            <div className="ingredient-editor__row" key={index}>
+              <label>
+                <span>재료명</span>
+                <input
+                  className="input"
+                  value={ingredient.name}
+                  onChange={(event) =>
+                    onChange({
+                      ...value,
+                      ingredients: value.ingredients.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, name: event.target.value } : item,
+                      ),
+                    })
+                  }
+                  maxLength={80}
+                  required
+                />
+              </label>
+              <label>
+                <span>수량</span>
+                <input
+                  className="input"
+                  type="number"
+                  min={0.01}
+                  max={10_000}
+                  step="any"
+                  value={ingredient.quantity}
+                  onChange={(event) =>
+                    onChange({
+                      ...value,
+                      ingredients: value.ingredients.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, quantity: event.target.value } : item,
+                      ),
+                    })
+                  }
+                  required
+                />
+              </label>
+              <label>
+                <span>단위</span>
+                <input
+                  className="input"
+                  value={ingredient.unit}
+                  onChange={(event) =>
+                    onChange({
+                      ...value,
+                      ingredients: value.ingredients.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, unit: event.target.value } : item,
+                      ),
+                    })
+                  }
+                  maxLength={20}
+                  required
+                />
+              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                aria-label={`${ingredient.name || `${index + 1}번째`} 재료 삭제`}
+                onClick={() =>
+                  onChange({
+                    ...value,
+                    ingredients: value.ingredients.filter((_, itemIndex) => itemIndex !== index),
+                  })
+                }
+              >
+                <Trash2 size={16} /> 삭제
+              </Button>
+            </div>
+          ))}
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() =>
+            onChange({
+              ...value,
+              ingredients: [...value.ingredients, { name: "", quantity: "1", unit: "개" }],
+            })
+          }
+        >
+          <Plus size={16} /> 재료 추가
+        </Button>
       </fieldset>
       <div className="record-editor__actions">
         {onCancel && (
@@ -928,7 +1119,13 @@ export function TripPollsPage() {
     queryFn: () => apiRequest<Poll[]>(`trips/${tripId}/polls`),
   });
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [options, setOptions] = useState("");
+  const [commentByPoll, setCommentByPoll] = useState<Record<string, string>>({});
+  const optionLabels = options
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
   const create = useMutation({
     mutationFn: () =>
       apiRequest<Poll>(`trips/${tripId}/polls`, {
@@ -936,16 +1133,15 @@ export function TripPollsPage() {
         body: JSON.stringify({
           type: "SINGLE",
           title,
-          optionLabels: options
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean),
+          ...(description.trim() ? { description } : {}),
+          optionLabels,
           anonymous: false,
           resultsVisibility: "ALWAYS",
         }),
       }),
     onSuccess: () => {
       setTitle("");
+      setDescription("");
       setOptions("");
       void queryClient.invalidateQueries({ queryKey: ["polls", tripId] });
     },
@@ -962,6 +1158,22 @@ export function TripPollsPage() {
     mutationFn: (pollId: string) => apiRequest(`polls/${pollId}/close`, { method: "POST" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["polls", tripId] }),
   });
+  const addComment = useMutation({
+    mutationFn: ({ pollId, body }: { pollId: string; body: string }) =>
+      apiRequest(`polls/${pollId}/comments`, {
+        method: "POST",
+        body: JSON.stringify({ body }),
+      }),
+    onSuccess: (_, variables) => {
+      setCommentByPoll((current) => ({ ...current, [variables.pollId]: "" }));
+      void queryClient.invalidateQueries({ queryKey: ["polls", tripId] });
+    },
+  });
+  const removeComment = useMutation({
+    mutationFn: (commentId: string) =>
+      apiRequest(`poll-comments/${commentId}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["polls", tripId] }),
+  });
 
   return (
     <WorkspaceShell
@@ -969,78 +1181,216 @@ export function TripPollsPage() {
       title="친구들과 투표하기"
       description="장소, 메뉴, 출발 시간처럼 의견이 갈리는 일을 한 번에 정하세요."
     >
-      <Card>
+      <Card className="poll-create-card">
+        <div>
+          <span className="eyebrow">새 안건</span>
+          <h2>무엇을 정할까요?</h2>
+          <p>선택지는 한 줄에 하나씩 적어 주세요. 만든 뒤에는 한 항목을 골라 투표합니다.</p>
+        </div>
         <form
-          className="inline-create-form"
+          className="poll-create-form"
           onSubmit={(event) => {
             event.preventDefault();
             create.mutate();
           }}
         >
-          <input
-            className="input"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="투표 제목"
-            minLength={2}
-            required
-          />
-          <input
-            className="input"
-            value={options}
-            onChange={(event) => setOptions(event.target.value)}
-            placeholder="선택지 (쉼표로 구분)"
-            required
-          />
-          <Button type="submit" disabled={create.isPending}>
-            <Plus size={17} />
-            투표 만들기
-          </Button>
+          <label>
+            투표 제목
+            <input
+              className="input"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="예: 출발 시간을 정해요"
+              minLength={2}
+              required
+            />
+          </label>
+          <label>
+            설명 <small>(선택)</small>
+            <input
+              className="input"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="결정할 때 참고할 내용을 적어 주세요"
+              maxLength={500}
+            />
+          </label>
+          <label className="poll-create-form__options">
+            선택지 <small>({optionLabels.length}/12)</small>
+            <textarea
+              className="input textarea"
+              value={options}
+              onChange={(event) => setOptions(event.target.value)}
+              placeholder={"오전 8시\n오전 9시\n오전 10시"}
+              required
+            />
+            <span>최소 2개 · 줄바꿈 또는 쉼표로 구분</span>
+          </label>
+          <div className="poll-create-form__actions">
+            <Button
+              type="submit"
+              disabled={create.isPending || title.trim().length < 2 || optionLabels.length < 2}
+            >
+              <Plus size={17} />
+              투표 만들기
+            </Button>
+          </div>
         </form>
         <ErrorNotice error={create.error} />
       </Card>
       {polls.isPending && <Spinner label="투표 불러오는 중" />}
+      {polls.data?.length === 0 && (
+        <EmptyState title="아직 투표가 없어요">
+          위 입력칸에서 첫 번째 안건을 만들어 보세요.
+        </EmptyState>
+      )}
       <div className="poll-list">
         {polls.data?.map((poll) => (
           <Card className="poll-card" key={poll.id}>
-            <div className="section-heading-row">
+            <div className="poll-card__header">
               <div>
-                <span className="badge">{poll.status === "OPEN" ? "진행 중" : "마감"}</span>
+                <span className={`badge ${poll.status === "OPEN" ? "" : "poll-badge--closed"}`}>
+                  {poll.status === "OPEN" ? "투표 중" : "마감됨"}
+                </span>
                 <h2>{poll.title}</h2>
               </div>
-              <small>{poll.voteCount}명 참여</small>
+              <strong>{poll.voteCount}명 참여</strong>
             </div>
             {poll.description && <p>{poll.description}</p>}
-            <div className="poll-options">
+            <div className="poll-guide" role="status">
+              {poll.status !== "OPEN"
+                ? "마감된 투표입니다. 최종 결과를 확인해 주세요."
+                : poll.myVote
+                  ? "선택한 항목을 다시 누르거나 다른 항목을 눌러 변경할 수 있어요."
+                  : "아래에서 한 항목을 선택해 주세요."}
+            </div>
+            <div className="poll-options" aria-label={`${poll.title} 선택지`}>
               {poll.options.map((option) => {
                 const selected = poll.myVote?.optionIds?.includes(option.id) ?? false;
                 const count = poll.results?.find((result) => result.id === option.id)?.count;
+                const percentage =
+                  count === undefined || poll.voteCount === 0
+                    ? 0
+                    : Math.round((count / poll.voteCount) * 100);
                 return (
                   <button
                     className={selected ? "poll-option poll-option--selected" : "poll-option"}
                     key={option.id}
                     type="button"
+                    aria-pressed={selected}
                     disabled={poll.status !== "OPEN" || vote.isPending}
                     onClick={() => vote.mutate({ pollId: poll.id, optionId: option.id })}
                   >
-                    <span>
-                      {selected && <Check size={16} />}
-                      {option.label}
+                    <span className="poll-option__main">
+                      <i className="poll-option__check" aria-hidden="true">
+                        {selected && <Check size={15} />}
+                      </i>
+                      <span>
+                        <strong>{option.label}</strong>
+                        {selected && <small>내 선택</small>}
+                      </span>
                     </span>
-                    {count !== undefined && <strong>{count}표</strong>}
+                    {count !== undefined && (
+                      <span className="poll-option__result">
+                        <strong>{count}표</strong>
+                        <small>{percentage}%</small>
+                      </span>
+                    )}
+                    {count !== undefined && (
+                      <progress
+                        className="poll-option__progress"
+                        value={count}
+                        max={Math.max(1, poll.voteCount)}
+                        aria-label={`${option.label} ${count}표`}
+                      />
+                    )}
                   </button>
                 );
               })}
             </div>
-            {poll.status === "OPEN" && (
-              <Button variant="ghost" onClick={() => close.mutate(poll.id)}>
+            {poll.results === null && (
+              <small className="poll-results-hidden">결과는 투표가 마감되면 공개됩니다.</small>
+            )}
+            {poll.canClose && (
+              <Button
+                variant="ghost"
+                disabled={close.isPending}
+                onClick={() => close.mutate(poll.id)}
+              >
                 투표 마감
               </Button>
             )}
+            <section className="poll-comments" aria-label={`${poll.title} 의견`}>
+              <div className="poll-comments__heading">
+                <h3>
+                  <MessageCircle size={17} /> 의견
+                </h3>
+                <small>{poll.comments.length}개</small>
+              </div>
+              {poll.comments.length === 0 && (
+                <p className="poll-comments__empty">
+                  아직 의견이 없습니다. 선택 이유나 참고사항을 남겨 보세요.
+                </p>
+              )}
+              <div className="poll-comments__list">
+                {poll.comments.map((comment) => (
+                  <article className="poll-comment" key={comment.id}>
+                    <div>
+                      <strong>{comment.author.nickname}</strong>
+                      <small>{dateTime(comment.createdAt)}</small>
+                    </div>
+                    <p>{comment.body}</p>
+                    {comment.canDelete && (
+                      <button
+                        className="poll-comment__delete"
+                        type="button"
+                        aria-label={`${comment.author.nickname}의 의견 삭제`}
+                        disabled={removeComment.isPending}
+                        onClick={() => removeComment.mutate(comment.id)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </article>
+                ))}
+              </div>
+              <form
+                className="poll-comment-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const body = commentByPoll[poll.id]?.trim();
+                  if (body) addComment.mutate({ pollId: poll.id, body });
+                }}
+              >
+                <label htmlFor={`poll-comment-${poll.id}`}>의견 남기기</label>
+                <div>
+                  <input
+                    id={`poll-comment-${poll.id}`}
+                    className="input"
+                    value={commentByPoll[poll.id] ?? ""}
+                    onChange={(event) =>
+                      setCommentByPoll((current) => ({
+                        ...current,
+                        [poll.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="선택 이유나 참고할 내용을 적어 주세요"
+                    maxLength={1000}
+                    required
+                  />
+                  <Button
+                    type="submit"
+                    disabled={addComment.isPending || !(commentByPoll[poll.id] ?? "").trim()}
+                  >
+                    등록
+                  </Button>
+                </div>
+              </form>
+            </section>
           </Card>
         ))}
       </div>
-      <ErrorNotice error={vote.error ?? close.error} />
+      <ErrorNotice error={vote.error ?? close.error ?? addComment.error ?? removeComment.error} />
     </WorkspaceShell>
   );
 }
@@ -1266,7 +1616,7 @@ export function TripTasksPage() {
 }
 
 export function TripMealsPage() {
-  const { tripId } = useTrip();
+  const { tripId, data: trip } = useTrip();
   const queryClient = useQueryClient();
   const meals = useQuery({
     queryKey: ["meals", tripId],
@@ -1276,72 +1626,167 @@ export function TripMealsPage() {
     queryKey: ["shopping", tripId],
     queryFn: () => apiRequest<ShoppingItem[]>(`trips/${tripId}/shopping-list`),
   });
-  const [menu, setMenu] = useState("");
-  const [ingredient, setIngredient] = useState("");
+  const [createValue, setCreateValue] = useState<MealFormValue>({
+    mealAt: currentKoreaDateTimeInput(),
+    menu: "",
+    note: "",
+    assigneeId: "",
+    ingredients: [],
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<MealFormValue | null>(null);
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ["meals", tripId] });
+    void queryClient.invalidateQueries({ queryKey: ["shopping", tripId] });
+  };
+  const mealInput = (value: MealFormValue) => ({
+    mealAt: fromKoreaDateTimeInput(value.mealAt),
+    menu: value.menu,
+    ...(value.note ? { note: value.note } : {}),
+    ...(value.assigneeId ? { assigneeId: value.assigneeId } : {}),
+    ingredients: value.ingredients.map((ingredient) => ({
+      name: ingredient.name,
+      quantity: Number(ingredient.quantity),
+      unit: ingredient.unit,
+    })),
+  });
   const create = useMutation({
     mutationFn: () =>
       apiRequest(`trips/${tripId}/meals`, {
         method: "POST",
-        body: JSON.stringify({
-          mealAt: new Date("2026-08-29T18:00:00+09:00").toISOString(),
-          menu,
-          ingredients: ingredient ? [{ name: ingredient, quantity: 1, unit: "개" }] : [],
-        }),
+        body: JSON.stringify(mealInput(createValue)),
       }),
     onSuccess: () => {
-      setMenu("");
-      setIngredient("");
-      void queryClient.invalidateQueries({ queryKey: ["meals", tripId] });
-      void queryClient.invalidateQueries({ queryKey: ["shopping", tripId] });
+      setCreateValue({
+        mealAt: currentKoreaDateTimeInput(),
+        menu: "",
+        note: "",
+        assigneeId: "",
+        ingredients: [],
+      });
+      refresh();
     },
   });
+  const update = useMutation({
+    mutationFn: ({ id, value }: { id: string; value: MealFormValue }) =>
+      apiRequest(`meals/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(mealInput(value)),
+      }),
+    onSuccess: () => {
+      setEditingId(null);
+      setEditValue(null);
+      refresh();
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => apiRequest(`meals/${id}`, { method: "DELETE" }),
+    onSuccess: refresh,
+  });
+
+  function startEditing(meal: Meal) {
+    setEditingId(meal.id);
+    setEditValue({
+      mealAt: toKoreaDateTimeInput(meal.mealAt),
+      menu: meal.menu,
+      note: meal.note ?? "",
+      assigneeId: meal.assignee?.id ?? "",
+      ingredients: asIngredients(meal.ingredients).map((ingredient) => ({
+        name: ingredient.name,
+        quantity: String(ingredient.quantity),
+        unit: ingredient.unit,
+      })),
+    });
+  }
+
   return (
     <WorkspaceShell
       eyebrow="식단과 장보기"
       title="뭘 먹을지 정하면 장보기는 자동"
       description="메뉴에 재료를 넣으면 중복 재료를 합쳐 장보기 목록으로 보여줍니다."
     >
-      <form
-        className="inline-create-form inline-create-form--three"
-        onSubmit={(event) => {
-          event.preventDefault();
-          create.mutate();
-        }}
-      >
-        <input
-          className="input"
-          value={menu}
-          onChange={(event) => setMenu(event.target.value)}
-          placeholder="메뉴"
-          required
+      <Card className="record-create-card">
+        <div className="section-heading-row">
+          <div>
+            <span className="eyebrow">새 식단</span>
+            <h2>식단 정보 입력</h2>
+          </div>
+          <small>시간·담당자와 재료별 수량을 등록한 뒤에도 수정할 수 있습니다.</small>
+        </div>
+        <MealForm
+          value={createValue}
+          members={trip?.members ?? []}
+          pending={create.isPending}
+          submitLabel="식단 추가"
+          onChange={setCreateValue}
+          onSubmit={() => create.mutate()}
         />
-        <input
-          className="input"
-          value={ingredient}
-          onChange={(event) => setIngredient(event.target.value)}
-          placeholder="대표 재료 (선택)"
-        />
-        <Button type="submit">메뉴 추가</Button>
-      </form>
-      <ErrorNotice error={create.error} />
+      </Card>
+      <ErrorNotice error={create.error ?? update.error ?? remove.error} />
       <div className="meal-layout">
         <section>
           <h2>식단</h2>
           <div className="meal-list">
-            {meals.data?.map((meal) => (
-              <Card key={meal.id}>
-                <span className="badge">{dateTime(meal.mealAt)}</span>
-                <h3>{meal.menu}</h3>
-                <div className="chip-row">
-                  {asIngredients(meal.ingredients).map((item) => (
-                    <i key={`${item.name}-${item.unit}`}>
-                      {item.name} {item.quantity}
-                      {item.unit}
-                    </i>
-                  ))}
-                </div>
-              </Card>
-            ))}
+            {meals.data?.map((meal) => {
+              const editingValue = editingId === meal.id ? editValue : null;
+              return (
+                <Card className="meal-card" key={meal.id}>
+                  {editingValue ? (
+                    <>
+                      <h3>{meal.menu} 수정</h3>
+                      <MealForm
+                        value={editingValue}
+                        members={trip?.members ?? []}
+                        pending={update.isPending}
+                        submitLabel="변경 저장"
+                        onChange={setEditValue}
+                        onSubmit={() => update.mutate({ id: meal.id, value: editingValue })}
+                        onCancel={() => {
+                          setEditingId(null);
+                          setEditValue(null);
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <span className="badge">{dateTime(meal.mealAt)}</span>
+                      <h3>{meal.menu}</h3>
+                      <small>담당: {meal.assignee?.nickname ?? "미정"}</small>
+                      {meal.note && <p>{meal.note}</p>}
+                      <div className="chip-row">
+                        {asIngredients(meal.ingredients).map((item) => (
+                          <i key={`${item.name}-${item.unit}`}>
+                            {item.name} {item.quantity}
+                            {item.unit}
+                          </i>
+                        ))}
+                      </div>
+                      <div className="record-card__actions">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => startEditing(meal)}
+                        >
+                          <Pencil size={16} /> 수정
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="danger"
+                          disabled={remove.isPending}
+                          onClick={() => {
+                            if (window.confirm(`${meal.menu} 식단을 삭제할까요?`)) {
+                              remove.mutate(meal.id);
+                            }
+                          }}
+                        >
+                          <Trash2 size={16} /> 삭제
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </Card>
+              );
+            })}
           </div>
         </section>
         <Card className="shopping-card">

@@ -5,12 +5,14 @@ import {
   createMealSchema,
   createTaskSchema,
   createVehicleSchema,
-  updateVehicleSchema,
+  updateMealSchema,
   updateTaskSchema,
+  updateVehicleSchema,
   type CreateFileUploadInput,
   type CreateMealInput,
   type CreateTaskInput,
   type CreateVehicleInput,
+  type UpdateMealInput,
   type UpdateTaskInput,
   type UpdateVehicleInput,
 } from "@campflow/contracts";
@@ -70,6 +72,15 @@ export class PreparationController {
     @Body(new ZodValidationPipe(createMealSchema)) input: CreateMealInput,
   ) {
     return this.preparation.createMeal(user.id, tripId, input);
+  }
+
+  @Patch("meals/:id")
+  updateMeal(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") mealId: string,
+    @Body(new ZodValidationPipe(updateMealSchema)) input: UpdateMealInput,
+  ) {
+    return this.preparation.updateMeal(user.id, mealId, input);
   }
 
   @Delete("meals/:id")

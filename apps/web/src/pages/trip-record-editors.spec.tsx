@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ExpenseForm, VehicleForm } from "./trip-workspace-pages";
+import { ExpenseForm, MealForm, VehicleForm } from "./trip-workspace-pages";
 
 const members = [
   { user: { id: "member-user-01", nickname: "민지" } },
@@ -63,6 +63,40 @@ describe("여행 기록 편집 폼", () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ amount: "300000" }));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ participantUserIds: ["member-user-01", "member-user-02"] }),
+    );
+  });
+
+  it("식단의 시간과 여러 재료를 수정한다", () => {
+    const onChange = vi.fn();
+    render(
+      <MealForm
+        value={{
+          mealAt: "2026-08-29T18:00",
+          menu: "바비큐",
+          note: "맵지 않게",
+          assigneeId: "member-user-01",
+          ingredients: [{ name: "목살", quantity: "2", unit: "kg" }],
+        }}
+        members={members}
+        pending={false}
+        submitLabel="변경 저장"
+        onChange={onChange}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("수량"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: /재료 추가/ }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ingredients: [{ name: "목살", quantity: "3", unit: "kg" }],
+      }),
+    );
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ingredients: expect.arrayContaining([{ name: "", quantity: "1", unit: "개" }]),
+      }),
     );
   });
 });

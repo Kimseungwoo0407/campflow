@@ -2,10 +2,12 @@ import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/commo
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import {
   createItineraryItemSchema,
+  createPollCommentSchema,
   createPollSchema,
   pollVoteSchema,
   updateItineraryItemSchema,
   type CreateItineraryItemInput,
+  type CreatePollCommentInput,
   type CreatePollInput,
   type PollVoteInput,
   type UpdateItineraryItemInput,
@@ -42,6 +44,20 @@ export class PlanningController {
     @Body(new ZodValidationPipe(pollVoteSchema)) input: PollVoteInput,
   ) {
     return this.planning.vote(user.id, pollId, input);
+  }
+
+  @Post("polls/:id/comments")
+  addPollComment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") pollId: string,
+    @Body(new ZodValidationPipe(createPollCommentSchema)) input: CreatePollCommentInput,
+  ) {
+    return this.planning.addPollComment(user.id, pollId, input);
+  }
+
+  @Delete("poll-comments/:id")
+  removePollComment(@CurrentUser() user: AuthenticatedUser, @Param("id") commentId: string) {
+    return this.planning.removePollComment(user.id, commentId);
   }
 
   @Post("polls/:id/close")
