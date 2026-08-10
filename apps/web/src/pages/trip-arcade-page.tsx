@@ -92,6 +92,8 @@ const rpsSymbol: Record<RpsChoice, string> = {
   SCISSORS: "✌️",
 };
 
+const rpsWheelMultipliers = [2, 3, 5, 10, 100] as const;
+
 function numberResult(result: Record<string, unknown>, key: string, fallback = 0): number {
   return typeof result[key] === "number" ? result[key] : fallback;
 }
@@ -432,6 +434,11 @@ export function TripArcadePage() {
   const rpsMachine = stringResult(animationResult?.result ?? {}, "machine") as RpsChoice;
   const rpsMultiplier = numberResult(animationResult?.result ?? {}, "multiplier", 1);
   const rpsOutcome = stringResult(animationResult?.result ?? {}, "outcome");
+  const rpsWheelIndex = Math.max(
+    0,
+    rpsWheelMultipliers.findIndex((multiplier) => multiplier === rpsMultiplier),
+  );
+  const rpsWheelTurn = 1_800 - rpsWheelIndex * 72;
   const lotteryDraw =
     Array.isArray(animationResult?.result.draws) &&
     typeof animationResult.result.draws[0] === "object" &&
@@ -860,6 +867,7 @@ export function TripArcadePage() {
                 {{ WIN: "승", DRAW: "무", LOSS: "패" }[outcome.outcome]} {outcome.probability}
               </span>
             ))}
+            <span>승리 룰렛 · 각 20%</span>
           </div>
           <div className="rps-arena">
             <div className={busy ? "rps-hand is-shaking" : "rps-hand"}>
@@ -889,11 +897,11 @@ export function TripArcadePage() {
             <i className="roulette-pointer" />
             <div
               className={`multiplier-wheel ${
-                busy && animationResult && rpsOutcome === "WIN" ? "is-spinning" : ""
+                animationResult && rpsOutcome === "WIN" ? (busy ? "is-spinning" : "has-result") : ""
               }`}
               style={
                 {
-                  "--wheel-turn": `${1_440 + [2, 3, 5, 10, 100].indexOf(rpsMultiplier) * 72}deg`,
+                  "--wheel-turn": `${rpsWheelTurn}deg`,
                 } as CSSProperties
               }
             >
@@ -903,6 +911,7 @@ export function TripArcadePage() {
               <span>×10</span>
               <span>×100</span>
             </div>
+            <b className="roulette-equal-badge">각 20%</b>
           </div>
           {stage === "idle" && (
             <Button
@@ -920,9 +929,11 @@ export function TripArcadePage() {
           )}
           {busy && (
             <p className="machine-status">
-              {animationResult && rpsOutcome !== "WIN"
-                ? "가위바위보 결과를 판정 중…"
-                : "배수 룰렛 회전 중…"}
+              {!animationResult
+                ? "짱깸보 대결 중…"
+                : rpsOutcome === "WIN"
+                  ? "다섯 배수 동일 확률 룰렛 회전 중…"
+                  : "가위바위보 결과를 판정 중…"}
             </p>
           )}
           {revealedResult && (

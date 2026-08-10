@@ -99,12 +99,12 @@ const lotteryTiers = [
   { key: "BLANK", label: "꽝", weight: 900_000_000, probability: "90%", prize: 0 },
 ] as const;
 
-const rpsMultipliers = [
-  { multiplier: 2, weight: 500_000, probability: "50%" },
-  { multiplier: 3, weight: 300_000, probability: "30%" },
-  { multiplier: 5, weight: 150_000, probability: "15%" },
-  { multiplier: 10, weight: 49_990, probability: "4.999%" },
-  { multiplier: 100, weight: 10, probability: "0.001%" },
+export const rpsMultipliers = [
+  { multiplier: 2, weight: 200_000, probability: "20%" },
+  { multiplier: 3, weight: 200_000, probability: "20%" },
+  { multiplier: 5, weight: 200_000, probability: "20%" },
+  { multiplier: 10, weight: 200_000, probability: "20%" },
+  { multiplier: 100, weight: 200_000, probability: "20%" },
 ] as const;
 
 export const rpsOutcomeProbabilities = [
@@ -119,78 +119,317 @@ const ladderPayouts = [
   { selectionCount: 3, probability: "25%", multiplier: 3.8 },
 ] as const;
 
-const achievementDefinitions = [
-  {
-    key: "FIRST_CHECK_IN",
-    title: "첫 발자국",
-    description: "출석 체크를 1회 완료하세요.",
-    reward: 30,
-    target: 1,
-    metric: "CHECK_INS",
-  },
-  {
-    key: "TRIP_HELPER_3",
-    title: "여행 준비 도우미",
-    description: "서로 다른 여행 준비 활동 3종에 참여하세요.",
-    reward: 60,
-    target: 3,
-    metric: "ACTIVITY_TYPES",
-  },
-  {
-    key: "ARCADE_EXPLORER",
-    title: "게임장 탐험가",
-    description: "서로 다른 게임 4종을 플레이하세요.",
-    reward: 80,
-    target: 4,
-    metric: "GAME_TYPES",
-  },
-  {
-    key: "TAP_TOTAL_200",
-    title: "손가락 예열 완료",
-    description: "10초 탭에서 누적 200회를 기록하세요.",
-    reward: 50,
-    target: 200,
-    metric: "TAP_TOTAL",
-  },
-  {
-    key: "SNAIL_STREAK_3",
-    title: "달팽이 승부사",
-    description: "달팽이 레이스에서 3연속 승리하세요.",
-    reward: 100,
-    target: 3,
-    metric: "SNAIL_WIN_STREAK",
-  },
-  {
-    key: "GAME_ROUNDS_10",
-    title: "게임 마니아",
-    description: "게임을 10판 플레이하세요.",
-    reward: 100,
-    target: 10,
-    metric: "GAME_ROUNDS",
-  },
-  {
-    key: "FIRST_REWARD",
-    title: "포인트 첫 사용",
-    description: "포인트 상점에서 아이템을 1회 사용하세요.",
-    reward: 50,
-    target: 1,
-    metric: "REWARD_USES",
-  },
-] as const satisfies ReadonlyArray<{
+type AchievementMetric =
+  | "CHECK_INS"
+  | "ACTIVITY_TOTAL"
+  | "ACTIVITY_TYPES"
+  | "GAME_TYPES"
+  | "GAME_ROUNDS"
+  | "GAME_WINS"
+  | "TAP_TOTAL"
+  | "TAP_BEST"
+  | "SNAIL_ROUNDS"
+  | "SNAIL_WINS"
+  | "SNAIL_WIN_STREAK"
+  | "ODD_EVEN_ROUNDS"
+  | "RPS_ROUNDS"
+  | "PENALTY_ROUNDS"
+  | "LOTTERY_DRAWS"
+  | "REWARD_USES";
+
+type AchievementCategory = "TRIP" | "ARCADE" | "COLLECTION";
+
+interface AchievementDefinition {
   key: AchievementKey;
   title: string;
   description: string;
   reward: number;
   target: number;
-  metric:
-    | "CHECK_INS"
-    | "ACTIVITY_TYPES"
-    | "GAME_TYPES"
-    | "TAP_TOTAL"
-    | "SNAIL_WIN_STREAK"
-    | "GAME_ROUNDS"
-    | "REWARD_USES";
-}>;
+  metric: AchievementMetric;
+  seriesKey: string;
+  seriesTitle: string;
+  category: AchievementCategory;
+  stage: number;
+  stageCount: number;
+  unit: string;
+}
+
+function achievementSeries(input: {
+  seriesKey: string;
+  seriesTitle: string;
+  category: AchievementCategory;
+  metric: AchievementMetric;
+  unit: string;
+  describe: (target: number) => string;
+  stages: ReadonlyArray<{
+    key: AchievementKey;
+    target: number;
+    reward: number;
+    title?: string;
+  }>;
+}): AchievementDefinition[] {
+  return input.stages.map((stage, index) => ({
+    key: stage.key,
+    title: stage.title ?? `${input.seriesTitle} ${index + 1}단계`,
+    description: input.describe(stage.target),
+    reward: stage.reward,
+    target: stage.target,
+    metric: input.metric,
+    seriesKey: input.seriesKey,
+    seriesTitle: input.seriesTitle,
+    category: input.category,
+    stage: index + 1,
+    stageCount: input.stages.length,
+    unit: input.unit,
+  }));
+}
+
+export const achievementDefinitions: ReadonlyArray<AchievementDefinition> = [
+  ...achievementSeries({
+    seriesKey: "CHECK_IN",
+    seriesTitle: "출석 원정대",
+    category: "TRIP",
+    metric: "CHECK_INS",
+    unit: "일",
+    describe: (target) => `서로 다른 날짜에 출석 체크를 ${target}회 완료하세요.`,
+    stages: [
+      { key: "FIRST_CHECK_IN", target: 1, reward: 30, title: "첫 발자국" },
+      { key: "CHECK_IN_3", target: 3, reward: 60 },
+      { key: "CHECK_IN_7", target: 7, reward: 120 },
+      { key: "CHECK_IN_14", target: 14, reward: 240 },
+      { key: "CHECK_IN_30", target: 30, reward: 500 },
+      { key: "CHECK_IN_60", target: 60, reward: 1_000 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "ACTIVITY_TOTAL",
+    seriesTitle: "여행 해결사",
+    category: "TRIP",
+    metric: "ACTIVITY_TOTAL",
+    unit: "회",
+    describe: (target) => `여행 준비 활동을 누적 ${target}회 완료하세요.`,
+    stages: [
+      { key: "ACTIVITY_TOTAL_1", target: 1, reward: 20 },
+      { key: "ACTIVITY_TOTAL_5", target: 5, reward: 50 },
+      { key: "ACTIVITY_TOTAL_15", target: 15, reward: 100 },
+      { key: "ACTIVITY_TOTAL_30", target: 30, reward: 200 },
+      { key: "ACTIVITY_TOTAL_60", target: 60, reward: 400 },
+      { key: "ACTIVITY_TOTAL_100", target: 100, reward: 800 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "ACTIVITY_TYPES",
+    seriesTitle: "만능 준비꾼",
+    category: "TRIP",
+    metric: "ACTIVITY_TYPES",
+    unit: "종",
+    describe: (target) => `서로 다른 여행 준비 활동 ${target}종에 참여하세요.`,
+    stages: [
+      { key: "TRIP_HELPER_3", target: 3, reward: 60, title: "여행 준비 도우미" },
+      { key: "ACTIVITY_TYPES_5", target: 5, reward: 120 },
+      { key: "ACTIVITY_TYPES_7", target: 7, reward: 240 },
+      { key: "ACTIVITY_TYPES_9", target: 9, reward: 480 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "GAME_TYPES",
+    seriesTitle: "게임장 탐험가",
+    category: "ARCADE",
+    metric: "GAME_TYPES",
+    unit: "종",
+    describe: (target) => `서로 다른 포인트 게임 ${target}종을 플레이하세요.`,
+    stages: [
+      { key: "GAME_TYPES_2", target: 2, reward: 30 },
+      { key: "ARCADE_EXPLORER", target: 4, reward: 80, title: "게임장 탐험가" },
+      { key: "GAME_TYPES_6", target: 6, reward: 200 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "GAME_ROUNDS",
+    seriesTitle: "게임 마라토너",
+    category: "ARCADE",
+    metric: "GAME_ROUNDS",
+    unit: "판",
+    describe: (target) => `포인트 게임을 누적 ${target}판 플레이하세요.`,
+    stages: [
+      { key: "GAME_ROUNDS_1", target: 1, reward: 20 },
+      { key: "GAME_ROUNDS_10", target: 10, reward: 100, title: "게임 마니아" },
+      { key: "GAME_ROUNDS_25", target: 25, reward: 200 },
+      { key: "GAME_ROUNDS_50", target: 50, reward: 400 },
+      { key: "GAME_ROUNDS_100", target: 100, reward: 800 },
+      { key: "GAME_ROUNDS_250", target: 250, reward: 1_600 },
+      { key: "GAME_ROUNDS_500", target: 500, reward: 3_000 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "GAME_WINS",
+    seriesTitle: "승리 수집가",
+    category: "ARCADE",
+    metric: "GAME_WINS",
+    unit: "승",
+    describe: (target) => `게임 결과로 포인트 순이익을 얻은 판을 ${target}회 만드세요.`,
+    stages: [
+      { key: "GAME_WINS_1", target: 1, reward: 30 },
+      { key: "GAME_WINS_5", target: 5, reward: 70 },
+      { key: "GAME_WINS_15", target: 15, reward: 150 },
+      { key: "GAME_WINS_30", target: 30, reward: 300 },
+      { key: "GAME_WINS_60", target: 60, reward: 600 },
+      { key: "GAME_WINS_100", target: 100, reward: 1_200 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "TAP_TOTAL",
+    seriesTitle: "광속 손가락",
+    category: "ARCADE",
+    metric: "TAP_TOTAL",
+    unit: "탭",
+    describe: (target) => `10초 탭에서 누적 ${target.toLocaleString("ko-KR")}회를 기록하세요.`,
+    stages: [
+      { key: "TAP_TOTAL_200", target: 200, reward: 50, title: "손가락 예열 완료" },
+      { key: "TAP_TOTAL_500", target: 500, reward: 100 },
+      { key: "TAP_TOTAL_1000", target: 1_000, reward: 180 },
+      { key: "TAP_TOTAL_2500", target: 2_500, reward: 320 },
+      { key: "TAP_TOTAL_5000", target: 5_000, reward: 600 },
+      { key: "TAP_TOTAL_10000", target: 10_000, reward: 1_000 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "TAP_BEST",
+    seriesTitle: "10초의 지배자",
+    category: "ARCADE",
+    metric: "TAP_BEST",
+    unit: "탭",
+    describe: (target) => `10초 탭 한 판에서 ${target}회 이상 기록하세요.`,
+    stages: [
+      { key: "TAP_BEST_50", target: 50, reward: 20 },
+      { key: "TAP_BEST_100", target: 100, reward: 40 },
+      { key: "TAP_BEST_150", target: 150, reward: 80 },
+      { key: "TAP_BEST_200", target: 200, reward: 150 },
+      { key: "TAP_BEST_250", target: 250, reward: 250 },
+      { key: "TAP_BEST_300", target: 300, reward: 500 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "SNAIL_ROUNDS",
+    seriesTitle: "달팽이 조련사",
+    category: "ARCADE",
+    metric: "SNAIL_ROUNDS",
+    unit: "판",
+    describe: (target) => `달팽이 레이스를 누적 ${target}판 플레이하세요.`,
+    stages: [
+      { key: "SNAIL_ROUNDS_1", target: 1, reward: 30 },
+      { key: "SNAIL_ROUNDS_5", target: 5, reward: 100 },
+      { key: "SNAIL_ROUNDS_15", target: 15, reward: 250 },
+      { key: "SNAIL_ROUNDS_30", target: 30, reward: 500 },
+      { key: "SNAIL_ROUNDS_60", target: 60, reward: 1_000 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "SNAIL_WINS",
+    seriesTitle: "달팽이 우승 감독",
+    category: "ARCADE",
+    metric: "SNAIL_WINS",
+    unit: "승",
+    describe: (target) => `달팽이 레이스에서 누적 ${target}승을 기록하세요.`,
+    stages: [
+      { key: "SNAIL_WINS_1", target: 1, reward: 40 },
+      { key: "SNAIL_WINS_3", target: 3, reward: 100 },
+      { key: "SNAIL_WINS_10", target: 10, reward: 250 },
+      { key: "SNAIL_WINS_25", target: 25, reward: 500 },
+      { key: "SNAIL_WINS_50", target: 50, reward: 1_000 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "SNAIL_STREAK",
+    seriesTitle: "연승의 달팽이",
+    category: "ARCADE",
+    metric: "SNAIL_WIN_STREAK",
+    unit: "연승",
+    describe: (target) => `달팽이 레이스에서 최고 ${target}연승을 달성하세요.`,
+    stages: [
+      { key: "SNAIL_STREAK_3", target: 3, reward: 100, title: "달팽이 승부사" },
+      { key: "SNAIL_STREAK_5", target: 5, reward: 250 },
+      { key: "SNAIL_STREAK_7", target: 7, reward: 500 },
+      { key: "SNAIL_STREAK_10", target: 10, reward: 1_000 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "ODD_EVEN_ROUNDS",
+    seriesTitle: "사다리 등반가",
+    category: "ARCADE",
+    metric: "ODD_EVEN_ROUNDS",
+    unit: "판",
+    describe: (target) => `홀짝 사다리를 누적 ${target}판 플레이하세요.`,
+    stages: [
+      { key: "ODD_EVEN_ROUNDS_1", target: 1, reward: 30 },
+      { key: "ODD_EVEN_ROUNDS_5", target: 5, reward: 100 },
+      { key: "ODD_EVEN_ROUNDS_15", target: 15, reward: 250 },
+      { key: "ODD_EVEN_ROUNDS_30", target: 30, reward: 500 },
+      { key: "ODD_EVEN_ROUNDS_60", target: 60, reward: 1_000 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "RPS_ROUNDS",
+    seriesTitle: "짱깸보 도전자",
+    category: "ARCADE",
+    metric: "RPS_ROUNDS",
+    unit: "판",
+    describe: (target) => `짱깸보 룰렛을 누적 ${target}판 플레이하세요.`,
+    stages: [
+      { key: "RPS_ROUNDS_1", target: 1, reward: 30 },
+      { key: "RPS_ROUNDS_5", target: 5, reward: 100 },
+      { key: "RPS_ROUNDS_15", target: 15, reward: 250 },
+      { key: "RPS_ROUNDS_30", target: 30, reward: 500 },
+      { key: "RPS_ROUNDS_60", target: 60, reward: 1_000 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "PENALTY_ROUNDS",
+    seriesTitle: "승부차기 키커",
+    category: "ARCADE",
+    metric: "PENALTY_ROUNDS",
+    unit: "판",
+    describe: (target) => `승부차기 대결을 누적 ${target}판 완료하세요.`,
+    stages: [
+      { key: "PENALTY_ROUNDS_1", target: 1, reward: 30 },
+      { key: "PENALTY_ROUNDS_5", target: 5, reward: 100 },
+      { key: "PENALTY_ROUNDS_15", target: 15, reward: 250 },
+      { key: "PENALTY_ROUNDS_30", target: 30, reward: 500 },
+      { key: "PENALTY_ROUNDS_60", target: 60, reward: 1_000 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "LOTTERY_DRAWS",
+    seriesTitle: "행운의 티켓",
+    category: "ARCADE",
+    metric: "LOTTERY_DRAWS",
+    unit: "장",
+    describe: (target) => `포인트 로또를 누적 ${target}장 구매하세요.`,
+    stages: [
+      { key: "LOTTERY_DRAWS_1", target: 1, reward: 20 },
+      { key: "LOTTERY_DRAWS_10", target: 10, reward: 70 },
+      { key: "LOTTERY_DRAWS_50", target: 50, reward: 200 },
+      { key: "LOTTERY_DRAWS_100", target: 100, reward: 450 },
+      { key: "LOTTERY_DRAWS_250", target: 250, reward: 1_000 },
+    ],
+  }),
+  ...achievementSeries({
+    seriesKey: "REWARD_USES",
+    seriesTitle: "아이템 전략가",
+    category: "COLLECTION",
+    metric: "REWARD_USES",
+    unit: "회",
+    describe: (target) => `포인트 아이템을 누적 ${target}회 사용하세요.`,
+    stages: [
+      { key: "FIRST_REWARD", target: 1, reward: 50, title: "포인트 첫 사용" },
+      { key: "REWARD_USES_3", target: 3, reward: 100 },
+      { key: "REWARD_USES_10", target: 10, reward: 250 },
+      { key: "REWARD_USES_25", target: 25, reward: 500 },
+      { key: "REWARD_USES_50", target: 50, reward: 1_000 },
+      { key: "REWARD_USES_100", target: 100, reward: 2_000 },
+    ],
+  }),
+];
 
 export function maximumConsecutiveWins(results: unknown[]): number {
   let current = 0;
@@ -1102,7 +1341,7 @@ export class PointsService {
       }),
       this.prisma.gameRound.findMany({
         where: { tripId, userId },
-        select: { gameType: true, score: true, result: true, createdAt: true },
+        select: { gameType: true, score: true, pointDelta: true, result: true, createdAt: true },
         orderBy: { createdAt: "asc" },
       }),
       this.prisma.rewardRedemption.count({
@@ -1126,15 +1365,47 @@ export class PointsService {
     const snailResults = gameRounds
       .filter((round) => round.gameType === "SNAIL_RACE")
       .map((round) => round.result);
-    const progressByMetric = {
+    const activityTotal = sourceKeys.filter((sourceKey) =>
+      sourceKey.startsWith("activity:"),
+    ).length;
+    const roundsByType = (gameType: GameType) =>
+      gameRounds.filter((round) => round.gameType === gameType).length;
+    const lotteryDraws = gameRounds
+      .filter((round) => round.gameType === "LOTTERY")
+      .reduce((total, round) => {
+        if (
+          typeof round.result !== "object" ||
+          round.result === null ||
+          Array.isArray(round.result) ||
+          !("draws" in round.result) ||
+          !Array.isArray(round.result.draws)
+        ) {
+          return total;
+        }
+        return total + round.result.draws.length;
+      }, 0);
+    const tapScores = gameRounds
+      .filter((round) => round.gameType === "TAP")
+      .map((round) => round.score ?? 0);
+    const progressByMetric: Record<AchievementMetric, number> = {
       CHECK_INS: sourceKeys.filter((sourceKey) => sourceKey.startsWith("check-in:")).length,
+      ACTIVITY_TOTAL: activityTotal,
       ACTIVITY_TYPES: activityTypes.size,
       GAME_TYPES: new Set(gameRounds.map((round) => round.gameType)).size,
-      TAP_TOTAL: gameRounds
-        .filter((round) => round.gameType === "TAP")
-        .reduce((sum, round) => sum + (round.score ?? 0), 0),
-      SNAIL_WIN_STREAK: maximumConsecutiveWins(snailResults),
       GAME_ROUNDS: gameRounds.length,
+      GAME_WINS: gameRounds.filter((round) => round.pointDelta > 0).length,
+      TAP_TOTAL: tapScores.reduce((sum, score) => sum + score, 0),
+      TAP_BEST: Math.max(0, ...tapScores),
+      SNAIL_ROUNDS: roundsByType("SNAIL_RACE"),
+      SNAIL_WINS: snailResults.filter(
+        (result) =>
+          typeof result === "object" && result !== null && "won" in result && result.won === true,
+      ).length,
+      SNAIL_WIN_STREAK: maximumConsecutiveWins(snailResults),
+      ODD_EVEN_ROUNDS: roundsByType("ODD_EVEN"),
+      RPS_ROUNDS: roundsByType("RPS_ROULETTE"),
+      PENALTY_ROUNDS: roundsByType("PENALTY_KICK"),
+      LOTTERY_DRAWS: lotteryDraws,
       REWARD_USES: rewardUses,
     };
     const items = achievementDefinitions.map((definition) => {
@@ -1145,6 +1416,12 @@ export class PointsService {
         title: definition.title,
         description: definition.description,
         reward: definition.reward,
+        seriesKey: definition.seriesKey,
+        seriesTitle: definition.seriesTitle,
+        category: definition.category,
+        stage: definition.stage,
+        stageCount: definition.stageCount,
+        unit: definition.unit,
         progress,
         target: definition.target,
         achieved: progress >= definition.target,
@@ -1155,8 +1432,11 @@ export class PointsService {
     return {
       items,
       totalCount: items.length,
+      seriesCount: new Set(items.map((item) => item.seriesKey)).size,
       achievedCount: items.filter((item) => item.achieved).length,
       claimedCount: items.filter((item) => item.claimed).length,
+      claimableCount: items.filter((item) => item.claimable).length,
+      totalReward: items.reduce((total, item) => total + item.reward, 0),
     };
   }
 
@@ -1195,7 +1475,12 @@ export class PointsService {
           "EARN",
           `업적 달성 · ${achievement.title}`,
           sourceKey,
-          { achievementKey: achievement.key, reward: achievement.reward },
+          {
+            achievementKey: achievement.key,
+            achievementSeriesKey: achievement.seriesKey,
+            achievementStage: achievement.stage,
+            reward: achievement.reward,
+          },
         );
         return transaction.pointLedger.findUniqueOrThrow({
           where: { tripId_userId_sourceKey: { tripId, userId, sourceKey } },

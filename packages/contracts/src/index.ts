@@ -405,15 +405,12 @@ export const managerRewardGrantSchema = z
   })
   .strict();
 
-export const achievementKeySchema = z.enum([
-  "FIRST_CHECK_IN",
-  "TRIP_HELPER_3",
-  "ARCADE_EXPLORER",
-  "TAP_TOTAL_200",
-  "SNAIL_STREAK_3",
-  "GAME_ROUNDS_10",
-  "FIRST_REWARD",
-]);
+export const achievementKeySchema = z
+  .string()
+  .trim()
+  .min(3)
+  .max(64)
+  .regex(/^[A-Z][A-Z0-9_]+$/, "올바른 업적 키가 아닙니다.");
 
 export const oddEvenGameSchema = z
   .object({

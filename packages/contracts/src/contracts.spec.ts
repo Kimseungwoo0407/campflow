@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  achievementKeySchema,
   changePasswordSchema,
   createInviteSchema,
   createManualCandidateSchema,
@@ -16,6 +17,12 @@ import {
 } from "./index";
 
 describe("공유 입력 계약", () => {
+  it("단계형 업적 키를 허용하고 잘못된 경로 문자는 거부한다", () => {
+    expect(achievementKeySchema.safeParse("CHECK_IN_60").success).toBe(true);
+    expect(achievementKeySchema.safeParse("REWARD_USES_100").success).toBe(true);
+    expect(achievementKeySchema.safeParse("check-in/60").success).toBe(false);
+  });
+
   it("이메일을 정규화하고 안전한 회원가입 입력을 허용한다", () => {
     const value = signUpSchema.parse({
       email: " OWNER@CampFlow.Local ",

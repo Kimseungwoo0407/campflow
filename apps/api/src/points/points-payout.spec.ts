@@ -4,6 +4,7 @@ import {
   payoutWithProfitMultiplier,
   payoutWithTotalMultiplier,
   rewardResaleValue,
+  rpsMultipliers,
   rpsOutcomeProbabilities,
 } from "./points.service";
 
@@ -24,7 +25,18 @@ describe("포인트 게임 순이익 배수", () => {
     expect(credited - wager).toBe(450);
   });
 
-  it("짱깸보는 패배 확률이 가장 높고 장기 기대값이 음수다", () => {
+  it("짱깸보 승리 룰렛의 다섯 배수는 모두 20% 확률이다", () => {
+    expect(rpsMultipliers).toEqual([
+      expect.objectContaining({ multiplier: 2, weight: 200_000, probability: "20%" }),
+      expect.objectContaining({ multiplier: 3, weight: 200_000, probability: "20%" }),
+      expect.objectContaining({ multiplier: 5, weight: 200_000, probability: "20%" }),
+      expect.objectContaining({ multiplier: 10, weight: 200_000, probability: "20%" }),
+      expect.objectContaining({ multiplier: 100, weight: 200_000, probability: "20%" }),
+    ]);
+    expect(rpsMultipliers.reduce((total, outcome) => total + outcome.weight, 0)).toBe(1_000_000);
+  });
+
+  it("짱깸보 승·무·패 확률은 기존 규칙을 유지한다", () => {
     expect(rpsOutcomeProbabilities).toEqual([
       expect.objectContaining({ outcome: "WIN", probability: "15%" }),
       expect.objectContaining({ outcome: "DRAW", probability: "20%" }),
@@ -33,7 +45,7 @@ describe("포인트 게임 순이익 배수", () => {
     expect(rpsOutcomeProbabilities.reduce((total, outcome) => total + outcome.weight, 0)).toBe(
       1_000_000,
     );
-    expect(expectedRpsNetMultiplier()).toBeLessThan(0);
+    expect(expectedRpsNetMultiplier()).toBeCloseTo(2.95);
   });
 });
 

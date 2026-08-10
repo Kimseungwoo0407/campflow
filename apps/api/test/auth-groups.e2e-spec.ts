@@ -484,10 +484,23 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       .get(`/v1/trips/${trip.id}/achievements`)
       .set("authorization", `Bearer ${friend.accessToken}`)
       .expect(200);
+    expect(achievementProgress.body.data).toMatchObject({
+      totalCount: 84,
+      seriesCount: 16,
+    });
     expect(achievementProgress.body.data.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           key: "SNAIL_STREAK_3",
+          progress: 3,
+          target: 3,
+          reward: 100,
+          claimable: true,
+        }),
+        expect.objectContaining({
+          key: "SNAIL_WINS_3",
+          seriesKey: "SNAIL_WINS",
+          stage: 2,
           progress: 3,
           target: 3,
           reward: 100,

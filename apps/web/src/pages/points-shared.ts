@@ -31,6 +31,12 @@ export interface Achievement {
   title: string;
   description: string;
   reward: number;
+  seriesKey: string;
+  seriesTitle: string;
+  category: "TRIP" | "ARCADE" | "COLLECTION";
+  stage: number;
+  stageCount: number;
+  unit: string;
   progress: number;
   target: number;
   achieved: boolean;
@@ -41,8 +47,11 @@ export interface Achievement {
 export interface AchievementsData {
   items: Achievement[];
   totalCount: number;
+  seriesCount: number;
   achievedCount: number;
   claimedCount: number;
+  claimableCount: number;
+  totalReward: number;
 }
 
 export interface RewardItem {
