@@ -521,6 +521,23 @@ p {
   font-size: 0.78rem;
 }
 
+.demo-entry {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.demo-entry .button {
+  width: 100%;
+}
+
+.demo-entry p {
+  margin: 0;
+  color: #60716e;
+  font-size: 0.78rem;
+}
+
 .auth-scene {
   min-height: 100vh;
   position: relative;

@@ -1,4 +1,10 @@
 import type { ApiError, ApiSuccess, AuthResult } from "@campflow/contracts";
+import {
+  clearDemoSession,
+  createDemoSession,
+  hasDemoSession,
+  isDemoMode,
+} from "../lib/demo-session";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/v1").replace(
   /\/$/,
@@ -30,6 +36,7 @@ export function clearApiSessionTokens(): void {
   accessToken = null;
   csrfTokenMemory = null;
   sessionStorage.removeItem("campflow_csrf");
+  clearDemoSession();
 }
 
 export function readCsrfToken(): string | undefined {
@@ -41,6 +48,9 @@ export function readCsrfToken(): string | undefined {
 }
 
 export async function restoreSession(): Promise<AuthResult> {
+  if (isDemoMode() && hasDemoSession()) {
+    return createDemoSession();
+  }
   if (!refreshPromise) {
     refreshPromise = rawRefresh().finally(() => {
       refreshPromise = null;

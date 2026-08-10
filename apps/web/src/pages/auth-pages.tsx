@@ -8,6 +8,7 @@ import {
   type LoginInput,
 } from "@campflow/contracts";
 import { apiRequest, ApiClientError } from "../api/client";
+import { createDemoSession, isDemoMode, saveDemoSession } from "../lib/demo-session";
 import { useAuthStore } from "../stores/auth";
 
 function AuthShell({ children, title, lead }: { children: React.ReactNode; title: string; lead: string }) {
@@ -46,6 +47,13 @@ export function LoginPage() {
     defaultValues: { identifier: "", password: "" },
   });
 
+  function enterDemo() {
+    saveDemoSession();
+    setSession(createDemoSession());
+    const state = location.state as { from?: string } | null;
+    navigate(state?.from ?? "/app", { replace: true });
+  }
+
   async function submit(input: LoginInput) {
     try {
       const result = await apiRequest<AuthResult>(
@@ -68,6 +76,14 @@ export function LoginPage() {
 
   return (
     <AuthShell title="친구 계정으로 로그인" lead="이름과 비밀번호를 입력하세요.">
+      {isDemoMode() && (
+        <div className="demo-entry">
+          <Button type="button" onClick={enterDemo}>
+            데모로 바로 입장
+          </Button>
+          <p>홈 서버 로그인 없이 로컬 데모 화면과 게임을 둘러볼 수 있습니다.</p>
+        </div>
+      )}
       <form className="stack-form" onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>
         <Field
           label="이름"
