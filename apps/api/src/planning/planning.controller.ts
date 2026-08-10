@@ -65,6 +65,11 @@ export class PlanningController {
     return this.planning.closePoll(user.id, pollId);
   }
 
+  @Delete("polls/:id")
+  removePoll(@CurrentUser() user: AuthenticatedUser, @Param("id") pollId: string) {
+    return this.planning.removePoll(user.id, pollId);
+  }
+
   @Get("trips/:tripId/itinerary/days")
   itinerary(@CurrentUser() user: AuthenticatedUser, @Param("tripId") tripId: string) {
     return this.planning.itinerary(user.id, tripId);

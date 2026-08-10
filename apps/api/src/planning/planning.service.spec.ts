@@ -49,4 +49,26 @@ describe("PlanningService", () => {
       ForbiddenException,
     );
   });
+
+  it("투표 작성자가 자신의 투표를 삭제한다", async () => {
+    const deletePoll = jest.fn().mockResolvedValue({ id: "poll-1" });
+    const prisma = {
+      poll: {
+        findUnique: jest.fn().mockResolvedValue({
+          tripId: "trip-1",
+          createdById: "member-user-01",
+        }),
+        delete: deletePoll,
+      },
+    } as unknown as PrismaService;
+    const access = {
+      requireWriter: jest.fn().mockResolvedValue({ role: "MEMBER" }),
+    } as unknown as TripAccessService;
+    const service = new PlanningService(prisma, access, {} as PointsService);
+
+    await expect(service.removePoll("member-user-01", "poll-1")).resolves.toEqual({
+      deleted: true,
+    });
+    expect(deletePoll).toHaveBeenCalledWith({ where: { id: "poll-1" } });
+  });
 });

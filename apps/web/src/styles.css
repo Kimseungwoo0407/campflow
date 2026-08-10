@@ -2386,6 +2386,12 @@ p {
   font-size: 0.82rem;
 }
 
+.poll-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
 .poll-badge--closed {
   background: #edf0f0;
   color: var(--ink-muted);
@@ -3207,6 +3213,11 @@ textarea {
   }
 
   .poll-comment-form > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .poll-card__actions {
     align-items: stretch;
     flex-direction: column;
   }

@@ -200,6 +200,23 @@ export class PlanningService {
     return this.presentPoll(updated, userId, true);
   }
 
+  async removePoll(userId: string, pollId: string) {
+    const poll = await this.prisma.poll.findUnique({
+      where: { id: pollId },
+      select: { tripId: true, createdById: true },
+    });
+    if (!poll) throw this.pollNotFound();
+    const membership = await this.access.requireWriter(userId, poll.tripId);
+    if (poll.createdById !== userId && membership.role !== "MANAGER") {
+      throw new ForbiddenException({
+        code: "POLL_DELETE_FORBIDDEN",
+        message: "투표 작성자나 여행 관리자만 삭제할 수 있습니다.",
+      });
+    }
+    await this.prisma.poll.delete({ where: { id: pollId } });
+    return { deleted: true };
+  }
+
   async itinerary(userId: string, tripId: string) {
     await this.access.requireMembership(userId, tripId);
     return this.prisma.itineraryDay.findMany({
@@ -418,6 +435,7 @@ export class PlanningService {
       myVote: poll.votes.find((vote) => vote.userId === userId)?.payload ?? null,
       results: resultsVisible ? this.pollResults(poll) : null,
       canClose: canManage && poll.status === "OPEN",
+      canDelete: canManage || poll.createdBy.id === userId,
       comments: poll.comments.map((comment) => ({
         ...comment,
         canDelete: canManage || comment.authorId === userId,

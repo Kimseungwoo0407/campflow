@@ -88,6 +88,7 @@ interface Poll {
   myVote: { optionIds?: string[] } | null;
   results: PollResult[] | null;
   canClose: boolean;
+  canDelete: boolean;
   comments: Array<{
     id: string;
     body: string;
@@ -1158,6 +1159,10 @@ export function TripPollsPage() {
     mutationFn: (pollId: string) => apiRequest(`polls/${pollId}/close`, { method: "POST" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["polls", tripId] }),
   });
+  const removePoll = useMutation({
+    mutationFn: (pollId: string) => apiRequest(`polls/${pollId}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["polls", tripId] }),
+  });
   const addComment = useMutation({
     mutationFn: ({ pollId, body }: { pollId: string; body: string }) =>
       apiRequest(`polls/${pollId}/comments`, {
@@ -1311,14 +1316,36 @@ export function TripPollsPage() {
             {poll.results === null && (
               <small className="poll-results-hidden">결과는 투표가 마감되면 공개됩니다.</small>
             )}
-            {poll.canClose && (
-              <Button
-                variant="ghost"
-                disabled={close.isPending}
-                onClick={() => close.mutate(poll.id)}
-              >
-                투표 마감
-              </Button>
+            {(poll.canClose || poll.canDelete) && (
+              <div className="poll-card__actions">
+                {poll.canClose && (
+                  <Button
+                    variant="ghost"
+                    disabled={close.isPending || removePoll.isPending}
+                    onClick={() => close.mutate(poll.id)}
+                  >
+                    투표 마감
+                  </Button>
+                )}
+                {poll.canDelete && (
+                  <Button
+                    variant="danger"
+                    disabled={removePoll.isPending || close.isPending}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `“${poll.title}” 투표를 삭제할까요? 투표 결과와 의견도 함께 삭제됩니다.`,
+                        )
+                      ) {
+                        removePoll.mutate(poll.id);
+                      }
+                    }}
+                  >
+                    <Trash2 size={15} />
+                    투표 삭제
+                  </Button>
+                )}
+              </div>
             )}
             <section className="poll-comments" aria-label={`${poll.title} 의견`}>
               <div className="poll-comments__heading">
@@ -1390,7 +1417,11 @@ export function TripPollsPage() {
           </Card>
         ))}
       </div>
-      <ErrorNotice error={vote.error ?? close.error ?? addComment.error ?? removeComment.error} />
+      <ErrorNotice
+        error={
+          vote.error ?? close.error ?? removePoll.error ?? addComment.error ?? removeComment.error
+        }
+      />
     </WorkspaceShell>
   );
 }
