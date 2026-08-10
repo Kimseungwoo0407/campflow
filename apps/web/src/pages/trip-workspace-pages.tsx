@@ -18,13 +18,16 @@ import {
   MessageCircle,
   MessageSquareText,
   MousePointerClick,
+  Pencil,
   Plus,
+  Save,
   ShoppingBasket,
   Ticket,
   Trash2,
   Trophy,
   Utensils,
   Vote,
+  X,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
@@ -134,6 +137,8 @@ interface Vehicle {
   seats: number;
   departureLocation: string;
   departureAt: string | null;
+  note: string | null;
+  owner: UserRef;
   driver: UserRef;
   passengers: Array<{ user: UserRef }>;
 }
@@ -146,13 +151,16 @@ interface TransportValidation {
   valid: boolean;
 }
 
+type ExpenseCategory = "ACCOMMODATION" | "TRANSPORT" | "FOOD" | "ACTIVITY" | "OTHER";
+
 interface Expense {
   id: string;
   amount: number;
-  category: string;
+  category: ExpenseCategory;
   spentAt: string;
   memo: string;
   payer: UserRef;
+  shares: Array<{ amount: number; user: UserRef }>;
 }
 
 interface SettlementPayment {
@@ -175,6 +183,33 @@ interface ExpenseData {
   total: number;
   latestSettlement: Settlement | null;
 }
+
+interface VehicleFormValue {
+  name: string;
+  driverId: string;
+  seats: string;
+  departureLocation: string;
+  departureAt: string;
+  note: string;
+  passengerIds: string[];
+}
+
+interface ExpenseFormValue {
+  memo: string;
+  amount: string;
+  category: ExpenseCategory;
+  spentAt: string;
+  payerId: string;
+  participantUserIds: string[];
+}
+
+const expenseCategoryOptions: Array<{ value: ExpenseCategory; label: string }> = [
+  { value: "ACCOMMODATION", label: "숙박" },
+  { value: "TRANSPORT", label: "교통" },
+  { value: "FOOD", label: "식비" },
+  { value: "ACTIVITY", label: "활동" },
+  { value: "OTHER", label: "기타" },
+];
 
 interface Comment {
   id: string;
@@ -248,6 +283,290 @@ function dateTime(value: string | null): string {
     minute: "2-digit",
     timeZone: "Asia/Seoul",
   }).format(new Date(value));
+}
+
+function toKoreaDateTimeInput(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() + 9 * 60 * 60 * 1_000).toISOString().slice(0, 16);
+}
+
+function fromKoreaDateTimeInput(value: string): string {
+  return new Date(`${value}:00+09:00`).toISOString();
+}
+
+function currentKoreaDateTimeInput(): string {
+  return toKoreaDateTimeInput(new Date().toISOString());
+}
+
+function toggleMember(ids: string[], userId: string): string[] {
+  return ids.includes(userId) ? ids.filter((id) => id !== userId) : [...ids, userId];
+}
+
+export function VehicleForm({
+  value,
+  members,
+  pending,
+  submitLabel,
+  onChange,
+  onSubmit,
+  onCancel,
+}: {
+  value: VehicleFormValue;
+  members: Array<{ user: UserRef }>;
+  pending: boolean;
+  submitLabel: string;
+  onChange: (value: VehicleFormValue) => void;
+  onSubmit: () => void;
+  onCancel?: () => void;
+}) {
+  return (
+    <form
+      className="record-editor"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      <div className="record-editor__grid">
+        <label>
+          <span>차량명</span>
+          <input
+            className="input"
+            value={value.name}
+            onChange={(event) => onChange({ ...value, name: event.target.value })}
+            maxLength={80}
+            required
+          />
+        </label>
+        <label>
+          <span>운전자</span>
+          <select
+            className="input"
+            value={value.driverId}
+            onChange={(event) =>
+              onChange({
+                ...value,
+                driverId: event.target.value,
+                passengerIds: value.passengerIds.filter((id) => id !== event.target.value),
+              })
+            }
+            required
+          >
+            <option value="">선택</option>
+            {members.map((member) => (
+              <option key={member.user.id} value={member.user.id}>
+                {member.user.nickname}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>총 좌석</span>
+          <input
+            className="input"
+            type="number"
+            min={1}
+            max={20}
+            step={1}
+            value={value.seats}
+            onChange={(event) => onChange({ ...value, seats: event.target.value })}
+            required
+          />
+        </label>
+        <label>
+          <span>출발지</span>
+          <input
+            className="input"
+            value={value.departureLocation}
+            onChange={(event) => onChange({ ...value, departureLocation: event.target.value })}
+            maxLength={200}
+            required
+          />
+        </label>
+        <label>
+          <span>출발 일시</span>
+          <input
+            className="input"
+            type="datetime-local"
+            value={value.departureAt}
+            onChange={(event) => onChange({ ...value, departureAt: event.target.value })}
+          />
+        </label>
+        <label>
+          <span>메모</span>
+          <input
+            className="input"
+            value={value.note}
+            onChange={(event) => onChange({ ...value, note: event.target.value })}
+            maxLength={500}
+            placeholder="선택 사항"
+          />
+        </label>
+      </div>
+      <fieldset className="member-picker">
+        <legend>탑승자</legend>
+        <div className="member-picker__grid">
+          {members
+            .filter((member) => member.user.id !== value.driverId)
+            .map((member) => (
+              <label className="check-field" key={member.user.id}>
+                <input
+                  type="checkbox"
+                  checked={value.passengerIds.includes(member.user.id)}
+                  onChange={() =>
+                    onChange({
+                      ...value,
+                      passengerIds: toggleMember(value.passengerIds, member.user.id),
+                    })
+                  }
+                />
+                <span>{member.user.nickname}</span>
+              </label>
+            ))}
+        </div>
+        <small>운전자를 제외하고 최대 {Math.max(0, Number(value.seats || 0) - 1)}명</small>
+      </fieldset>
+      <div className="record-editor__actions">
+        {onCancel && (
+          <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+            <X size={16} /> 취소
+          </Button>
+        )}
+        <Button type="submit" disabled={pending}>
+          <Save size={16} /> {pending ? "저장 중…" : submitLabel}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+export function ExpenseForm({
+  value,
+  members,
+  pending,
+  submitLabel,
+  onChange,
+  onSubmit,
+  onCancel,
+}: {
+  value: ExpenseFormValue;
+  members: Array<{ user: UserRef }>;
+  pending: boolean;
+  submitLabel: string;
+  onChange: (value: ExpenseFormValue) => void;
+  onSubmit: () => void;
+  onCancel?: () => void;
+}) {
+  return (
+    <form
+      className="record-editor"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      <div className="record-editor__grid">
+        <label>
+          <span>지출 내용</span>
+          <input
+            className="input"
+            value={value.memo}
+            onChange={(event) => onChange({ ...value, memo: event.target.value })}
+            maxLength={300}
+            required
+          />
+        </label>
+        <label>
+          <span>금액</span>
+          <input
+            className="input"
+            type="number"
+            min={1}
+            max={100_000_000}
+            step={1}
+            value={value.amount}
+            onChange={(event) => onChange({ ...value, amount: event.target.value })}
+            required
+          />
+        </label>
+        <label>
+          <span>분류</span>
+          <select
+            className="input"
+            value={value.category}
+            onChange={(event) =>
+              onChange({ ...value, category: event.target.value as ExpenseCategory })
+            }
+          >
+            {expenseCategoryOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>결제자</span>
+          <select
+            className="input"
+            value={value.payerId}
+            onChange={(event) => onChange({ ...value, payerId: event.target.value })}
+            required
+          >
+            <option value="">선택</option>
+            {members.map((member) => (
+              <option key={member.user.id} value={member.user.id}>
+                {member.user.nickname}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>사용 일시</span>
+          <input
+            className="input"
+            type="datetime-local"
+            value={value.spentAt}
+            onChange={(event) => onChange({ ...value, spentAt: event.target.value })}
+            required
+          />
+        </label>
+      </div>
+      <fieldset className="member-picker">
+        <legend>분담자</legend>
+        <div className="member-picker__grid">
+          {members.map((member) => (
+            <label className="check-field" key={member.user.id}>
+              <input
+                type="checkbox"
+                checked={value.participantUserIds.includes(member.user.id)}
+                onChange={() =>
+                  onChange({
+                    ...value,
+                    participantUserIds: toggleMember(value.participantUserIds, member.user.id),
+                  })
+                }
+              />
+              <span>{member.user.nickname}</span>
+            </label>
+          ))}
+        </div>
+        <small>한 명 이상 선택해 주세요.</small>
+      </fieldset>
+      <div className="record-editor__actions">
+        {onCancel && (
+          <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+            <X size={16} /> 취소
+          </Button>
+        )}
+        <Button type="submit" disabled={pending}>
+          <Save size={16} /> {pending ? "저장 중…" : submitLabel}
+        </Button>
+      </div>
+    </form>
+  );
 }
 
 function asIngredients(value: unknown): Ingredient[] {
@@ -1056,30 +1375,92 @@ export function TripTransportPage() {
     queryKey: ["transport-validation", tripId],
     queryFn: () => apiRequest<TransportValidation>(`trips/${tripId}/transport/validation`),
   });
-  const [name, setName] = useState("추가 차량");
-  const [driverId, setDriverId] = useState("");
+  const [createValue, setCreateValue] = useState<VehicleFormValue>({
+    name: "",
+    driverId: "",
+    seats: "4",
+    departureLocation: "",
+    departureAt: "",
+    note: "",
+    passengerIds: [],
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<VehicleFormValue | null>(null);
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ["vehicles", tripId] });
+    void queryClient.invalidateQueries({ queryKey: ["transport-validation", tripId] });
+  };
   const create = useMutation({
     mutationFn: () => {
-      const actualDriver = driverId || trip?.members[0]?.user.id;
-      if (!actualDriver) throw new Error("운전자를 선택해 주세요.");
+      if (!createValue.driverId) throw new Error("운전자를 선택해 주세요.");
       return apiRequest(`trips/${tripId}/vehicles`, {
         method: "POST",
         body: JSON.stringify({
-          name,
-          driverId: actualDriver,
-          seats: 4,
-          departureLocation: "서울역",
-          departureAt: new Date("2026-08-29T09:00:00+09:00").toISOString(),
-          passengerIds:
-            trip?.members.map((member) => member.user.id).filter((id) => id !== actualDriver) ?? [],
+          name: createValue.name,
+          driverId: createValue.driverId,
+          seats: Number(createValue.seats),
+          departureLocation: createValue.departureLocation,
+          ...(createValue.departureAt
+            ? { departureAt: fromKoreaDateTimeInput(createValue.departureAt) }
+            : {}),
+          ...(createValue.note ? { note: createValue.note } : {}),
+          passengerIds: createValue.passengerIds,
         }),
       });
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["vehicles", tripId] });
-      void queryClient.invalidateQueries({ queryKey: ["transport-validation", tripId] });
+      setCreateValue({
+        name: "",
+        driverId: "",
+        seats: "4",
+        departureLocation: "",
+        departureAt: "",
+        note: "",
+        passengerIds: [],
+      });
+      refresh();
     },
   });
+  const update = useMutation({
+    mutationFn: ({ id, value }: { id: string; value: VehicleFormValue }) => {
+      if (!value.driverId) throw new Error("운전자를 선택해 주세요.");
+      return apiRequest(`vehicles/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: value.name,
+          driverId: value.driverId,
+          seats: Number(value.seats),
+          departureLocation: value.departureLocation,
+          ...(value.departureAt ? { departureAt: fromKoreaDateTimeInput(value.departureAt) } : {}),
+          ...(value.note ? { note: value.note } : {}),
+          passengerIds: value.passengerIds,
+        }),
+      });
+    },
+    onSuccess: () => {
+      setEditingId(null);
+      setEditValue(null);
+      refresh();
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => apiRequest(`vehicles/${id}`, { method: "DELETE" }),
+    onSuccess: refresh,
+  });
+
+  function startEditing(vehicle: Vehicle) {
+    setEditingId(vehicle.id);
+    setEditValue({
+      name: vehicle.name,
+      driverId: vehicle.driver.id,
+      seats: String(vehicle.seats),
+      departureLocation: vehicle.departureLocation,
+      departureAt: toKoreaDateTimeInput(vehicle.departureAt),
+      note: vehicle.note ?? "",
+      passengerIds: vehicle.passengers.map((passenger) => passenger.user.id),
+    });
+  }
+
   return (
     <WorkspaceShell
       eyebrow="차량 배정"
@@ -1102,53 +1483,90 @@ export function TripTransportPage() {
           </span>
         </div>
       </Card>
-      <form
-        className="inline-create-form inline-create-form--three"
-        onSubmit={(event) => {
-          event.preventDefault();
-          create.mutate();
-        }}
-      >
-        <input
-          className="input"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          required
+      <Card className="record-create-card">
+        <div className="section-heading-row">
+          <div>
+            <span className="eyebrow">새 차량</span>
+            <h2>차량 정보 입력</h2>
+          </div>
+          <small>좌석과 탑승자까지 등록 후에도 언제든 수정할 수 있습니다.</small>
+        </div>
+        <VehicleForm
+          value={createValue}
+          members={trip?.members ?? []}
+          pending={create.isPending}
+          submitLabel="차량 추가"
+          onChange={setCreateValue}
+          onSubmit={() => create.mutate()}
         />
-        <select
-          className="input"
-          value={driverId}
-          onChange={(event) => setDriverId(event.target.value)}
-        >
-          <option value="">운전자 선택</option>
-          {trip?.members.map((member) => (
-            <option key={member.user.id} value={member.user.id}>
-              {member.user.nickname}
-            </option>
-          ))}
-        </select>
-        <Button type="submit">차량 추가</Button>
-      </form>
-      <ErrorNotice error={create.error} />
+      </Card>
+      <ErrorNotice error={create.error ?? update.error ?? remove.error} />
       <div className="vehicle-grid">
-        {vehicles.data?.map((vehicle) => (
-          <Card className="vehicle-card" key={vehicle.id}>
-            <span className="badge">{vehicle.seats}인승</span>
-            <h2>{vehicle.name}</h2>
-            <p>
-              <strong>{vehicle.driver.nickname}</strong> 운전 · {vehicle.departureLocation} 출발
-            </p>
-            <small>{dateTime(vehicle.departureAt)}</small>
-            <div className="avatar-stack">
-              <i title={vehicle.driver.nickname}>{vehicle.driver.nickname.slice(0, 1)}</i>
-              {vehicle.passengers.map(({ user }) => (
-                <i title={user.nickname} key={user.id}>
-                  {user.nickname.slice(0, 1)}
-                </i>
-              ))}
-            </div>
-          </Card>
-        ))}
+        {vehicles.data?.map((vehicle) => {
+          const editingValue = editingId === vehicle.id ? editValue : null;
+          return (
+            <Card
+              className={editingValue ? "vehicle-card vehicle-card--editing" : "vehicle-card"}
+              key={vehicle.id}
+            >
+              {editingValue ? (
+                <>
+                  <h2>{vehicle.name} 수정</h2>
+                  <VehicleForm
+                    value={editingValue}
+                    members={trip?.members ?? []}
+                    pending={update.isPending}
+                    submitLabel="변경 저장"
+                    onChange={setEditValue}
+                    onSubmit={() => update.mutate({ id: vehicle.id, value: editingValue })}
+                    onCancel={() => {
+                      setEditingId(null);
+                      setEditValue(null);
+                    }}
+                  />
+                </>
+              ) : (
+                <>
+                  <span className="badge">{vehicle.seats}인승</span>
+                  <h2>{vehicle.name}</h2>
+                  <p>
+                    <strong>{vehicle.driver.nickname}</strong> 운전 · {vehicle.departureLocation}{" "}
+                    출발
+                  </p>
+                  <small>{dateTime(vehicle.departureAt)}</small>
+                  {vehicle.note && <p>{vehicle.note}</p>}
+                  <div className="avatar-stack" aria-label="차량 탑승자">
+                    <i title={`${vehicle.driver.nickname} (운전자)`}>
+                      {vehicle.driver.nickname.slice(0, 1)}
+                    </i>
+                    {vehicle.passengers.map(({ user }) => (
+                      <i title={user.nickname} key={user.id}>
+                        {user.nickname.slice(0, 1)}
+                      </i>
+                    ))}
+                  </div>
+                  <div className="record-card__actions">
+                    <Button type="button" variant="secondary" onClick={() => startEditing(vehicle)}>
+                      <Pencil size={16} /> 수정
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      disabled={remove.isPending}
+                      onClick={() => {
+                        if (window.confirm(`${vehicle.name} 차량을 삭제할까요?`)) {
+                          remove.mutate(vehicle.id);
+                        }
+                      }}
+                    >
+                      <Trash2 size={16} /> 삭제
+                    </Button>
+                  </div>
+                </>
+              )}
+            </Card>
+          );
+        })}
       </div>
     </WorkspaceShell>
   );
@@ -1161,39 +1579,85 @@ export function TripExpensesPage() {
     queryKey: ["expenses", tripId],
     queryFn: () => apiRequest<ExpenseData>(`trips/${tripId}/expenses`),
   });
-  const [memo, setMemo] = useState("");
-  const [amount, setAmount] = useState("");
-  const [payerId, setPayerId] = useState("");
+  const [createValue, setCreateValue] = useState<ExpenseFormValue>({
+    memo: "",
+    amount: "",
+    category: "OTHER",
+    spentAt: currentKoreaDateTimeInput(),
+    payerId: "",
+    participantUserIds: [],
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<ExpenseFormValue | null>(null);
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ["expenses", tripId] });
+  };
   const create = useMutation({
     mutationFn: () => {
-      const actualPayer = payerId || trip?.members[0]?.user.id;
-      if (!actualPayer) throw new Error("결제자를 선택해 주세요.");
+      if (!createValue.payerId) throw new Error("결제자를 선택해 주세요.");
+      if (createValue.participantUserIds.length === 0) {
+        throw new Error("분담자를 한 명 이상 선택해 주세요.");
+      }
       return apiRequest(`trips/${tripId}/expenses`, {
         method: "POST",
         body: JSON.stringify({
-          payerId: actualPayer,
-          amount: Number(amount),
-          category: "OTHER",
-          spentAt: new Date().toISOString(),
-          memo,
-          participantUserIds: trip?.members.map((member) => member.user.id) ?? [],
+          payerId: createValue.payerId,
+          amount: Number(createValue.amount),
+          category: createValue.category,
+          spentAt: fromKoreaDateTimeInput(createValue.spentAt),
+          memo: createValue.memo,
+          participantUserIds: createValue.participantUserIds,
         }),
       });
     },
     onSuccess: () => {
-      setMemo("");
-      setAmount("");
-      void queryClient.invalidateQueries({ queryKey: ["expenses", tripId] });
+      setCreateValue({
+        memo: "",
+        amount: "",
+        category: "OTHER",
+        spentAt: currentKoreaDateTimeInput(),
+        payerId: "",
+        participantUserIds: [],
+      });
+      refresh();
     },
+  });
+  const update = useMutation({
+    mutationFn: ({ id, value }: { id: string; value: ExpenseFormValue }) => {
+      if (!value.payerId) throw new Error("결제자를 선택해 주세요.");
+      if (value.participantUserIds.length === 0) {
+        throw new Error("분담자를 한 명 이상 선택해 주세요.");
+      }
+      return apiRequest(`expenses/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          payerId: value.payerId,
+          amount: Number(value.amount),
+          category: value.category,
+          spentAt: fromKoreaDateTimeInput(value.spentAt),
+          memo: value.memo,
+          participantUserIds: value.participantUserIds,
+        }),
+      });
+    },
+    onSuccess: () => {
+      setEditingId(null);
+      setEditValue(null);
+      refresh();
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => apiRequest(`expenses/${id}`, { method: "DELETE" }),
+    onSuccess: refresh,
   });
   const calculate = useMutation({
     mutationFn: () =>
       apiRequest<Settlement>(`trips/${tripId}/settlements/calculate`, { method: "POST" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses", tripId] }),
+    onSuccess: refresh,
   });
   const lock = useMutation({
     mutationFn: (id: string) => apiRequest(`settlements/${id}/lock`, { method: "POST" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses", tripId] }),
+    onSuccess: refresh,
   });
   const pay = useMutation({
     mutationFn: ({ id, paid }: { id: string; paid: boolean }) =>
@@ -1201,9 +1665,22 @@ export function TripExpensesPage() {
         method: "PATCH",
         body: JSON.stringify({ paid }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses", tripId] }),
+    onSuccess: refresh,
   });
   const settlement = expenses.data?.latestSettlement;
+
+  function startEditing(expense: Expense) {
+    setEditingId(expense.id);
+    setEditValue({
+      memo: expense.memo,
+      amount: String(expense.amount),
+      category: expense.category,
+      spentAt: toKoreaDateTimeInput(expense.spentAt),
+      payerId: expense.payer.id,
+      participantUserIds: expense.shares.map((share) => share.user.id),
+    });
+  }
+
   return (
     <WorkspaceShell
       eyebrow="비용과 정산"
@@ -1220,58 +1697,95 @@ export function TripExpensesPage() {
         <strong>{money(expenses.data?.total ?? 0)}</strong>
         <small>{expenses.data?.expenses.length ?? 0}건</small>
       </Card>
-      <form
-        className="inline-create-form expense-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          create.mutate();
-        }}
-      >
-        <input
-          className="input"
-          value={memo}
-          onChange={(event) => setMemo(event.target.value)}
-          placeholder="지출 내용"
-          required
+      <Card className="record-create-card">
+        <div className="section-heading-row">
+          <div>
+            <span className="eyebrow">새 지출</span>
+            <h2>지출 정보 입력</h2>
+          </div>
+          <small>결제자와 실제 분담자를 선택하고, 등록 후에도 수정할 수 있습니다.</small>
+        </div>
+        <ExpenseForm
+          value={createValue}
+          members={trip?.members ?? []}
+          pending={create.isPending}
+          submitLabel="지출 추가"
+          onChange={setCreateValue}
+          onSubmit={() => create.mutate()}
         />
-        <input
-          className="input"
-          type="number"
-          min="1"
-          value={amount}
-          onChange={(event) => setAmount(event.target.value)}
-          placeholder="금액"
-          required
-        />
-        <select
-          className="input"
-          value={payerId}
-          onChange={(event) => setPayerId(event.target.value)}
-        >
-          <option value="">결제자 선택</option>
-          {trip?.members.map((member) => (
-            <option key={member.user.id} value={member.user.id}>
-              {member.user.nickname}
-            </option>
-          ))}
-        </select>
-        <Button type="submit">지출 추가</Button>
-      </form>
-      <ErrorNotice error={create.error ?? calculate.error ?? lock.error ?? pay.error} />
+      </Card>
+      <ErrorNotice
+        error={
+          create.error ?? update.error ?? remove.error ?? calculate.error ?? lock.error ?? pay.error
+        }
+      />
       <div className="expense-layout">
         <section className="expense-list">
           <h2>지출 내역</h2>
-          {expenses.data?.expenses.map((expense) => (
-            <Card key={expense.id}>
-              <div>
-                <strong>{expense.memo}</strong>
-                <small>
-                  {expense.payer.nickname} 결제 · {dateTime(expense.spentAt)}
-                </small>
-              </div>
-              <b>{money(expense.amount)}</b>
-            </Card>
-          ))}
+          {expenses.data?.expenses.map((expense) => {
+            const editingValue = editingId === expense.id ? editValue : null;
+            const categoryLabel =
+              expenseCategoryOptions.find((option) => option.value === expense.category)?.label ??
+              "기타";
+            return (
+              <Card className="expense-card" key={expense.id}>
+                {editingValue ? (
+                  <>
+                    <h3>{expense.memo} 수정</h3>
+                    <ExpenseForm
+                      value={editingValue}
+                      members={trip?.members ?? []}
+                      pending={update.isPending}
+                      submitLabel="변경 저장"
+                      onChange={setEditValue}
+                      onSubmit={() => update.mutate({ id: expense.id, value: editingValue })}
+                      onCancel={() => {
+                        setEditingId(null);
+                        setEditValue(null);
+                      }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div className="expense-card__summary">
+                      <div>
+                        <span className="badge">{categoryLabel}</span>
+                        <strong>{expense.memo}</strong>
+                        <small>
+                          {expense.payer.nickname} 결제 · {dateTime(expense.spentAt)}
+                        </small>
+                        <small>
+                          분담: {expense.shares.map((share) => share.user.nickname).join(", ")}
+                        </small>
+                      </div>
+                      <b>{money(expense.amount)}</b>
+                    </div>
+                    <div className="record-card__actions">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => startEditing(expense)}
+                      >
+                        <Pencil size={16} /> 수정
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        disabled={remove.isPending}
+                        onClick={() => {
+                          if (window.confirm(`${expense.memo} 지출을 삭제할까요?`)) {
+                            remove.mutate(expense.id);
+                          }
+                        }}
+                      >
+                        <Trash2 size={16} /> 삭제
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </Card>
+            );
+          })}
         </section>
         <Card className="settlement-card">
           <div className="section-heading-row">

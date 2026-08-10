@@ -1,6 +1,10 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
-import type { CreateExpenseInput, UpdatePaymentInput } from "@campflow/contracts";
+import type {
+  CreateExpenseInput,
+  UpdateExpenseInput,
+  UpdatePaymentInput,
+} from "@campflow/contracts";
 import {
   calculateSettlements,
   newId,
@@ -54,37 +58,70 @@ export class ExpensesService {
 
   async create(userId: string, tripId: string, input: CreateExpenseInput) {
     await this.access.requireWriter(userId, tripId);
-    const participantUserIds = [...new Set(input.participantUserIds)];
-    const members = await this.access.members(tripId);
-    const memberIds = new Set(members.map((member) => member.userId));
-    if (
-      !memberIds.has(input.payerId) ||
-      participantUserIds.some((participantId) => !memberIds.has(participantId))
-    ) {
-      throw new ForbiddenException({
-        code: "EXPENSE_MEMBER_REQUIRED",
-        message: "결제자와 분담 대상은 여행 멤버여야 합니다.",
-      });
-    }
+    const participantUserIds = await this.expenseParticipantIds(tripId, input);
     const shares = splitAmountEvenly(input.amount, participantUserIds);
-    const expense = await this.prisma.expense.create({
-      data: {
-        id: newId(),
-        tripId,
-        payerId: input.payerId,
-        amount: input.amount,
-        category: input.category,
-        spentAt: new Date(input.spentAt),
-        memo: input.memo,
-        shares: { create: shares },
-      },
-      include: {
-        payer: { select: { id: true, nickname: true } },
-        shares: { include: { user: { select: { id: true, nickname: true } } } },
-      },
+    const expense = await this.prisma.$transaction(async (transaction) => {
+      const created = await transaction.expense.create({
+        data: {
+          id: newId(),
+          tripId,
+          payerId: input.payerId,
+          amount: input.amount,
+          category: input.category,
+          spentAt: new Date(input.spentAt),
+          memo: input.memo,
+          shares: { create: shares },
+        },
+        include: {
+          payer: { select: { id: true, nickname: true } },
+          shares: { include: { user: { select: { id: true, nickname: true } } } },
+        },
+      });
+      await transaction.settlementRevision.deleteMany({
+        where: { tripId, status: "DRAFT" },
+      });
+      return created;
     });
     await this.points.awardActivity(tripId, userId, "EXPENSE", expense.id);
     return expense;
+  }
+
+  async update(userId: string, expenseId: string, input: UpdateExpenseInput) {
+    const expense = await this.prisma.expense.findUnique({ where: { id: expenseId } });
+    if (!expense) throw this.expenseNotFound();
+    const membership = await this.access.requireMembership(userId, expense.tripId);
+    if (expense.payerId !== userId && membership.role !== "MANAGER") {
+      throw new ForbiddenException({
+        code: "EXPENSE_OWNER_REQUIRED",
+        message: "결제자 또는 여행 관리자만 지출을 수정할 수 있습니다.",
+      });
+    }
+    await this.assertSettlementUnlocked(expense.tripId);
+    const participantUserIds = await this.expenseParticipantIds(expense.tripId, input);
+    const shares = splitAmountEvenly(input.amount, participantUserIds);
+    return this.prisma.$transaction(async (transaction) => {
+      await transaction.expenseShare.deleteMany({ where: { expenseId } });
+      const updated = await transaction.expense.update({
+        where: { id: expenseId },
+        data: {
+          payerId: input.payerId,
+          amount: input.amount,
+          category: input.category,
+          spentAt: new Date(input.spentAt),
+          memo: input.memo,
+          revision: { increment: 1 },
+          shares: { create: shares },
+        },
+        include: {
+          payer: { select: { id: true, nickname: true } },
+          shares: { include: { user: { select: { id: true, nickname: true } } } },
+        },
+      });
+      await transaction.settlementRevision.deleteMany({
+        where: { tripId: expense.tripId, status: "DRAFT" },
+      });
+      return updated;
+    });
   }
 
   async remove(userId: string, expenseId: string) {
@@ -97,16 +134,13 @@ export class ExpensesService {
         message: "결제자 또는 여행 관리자만 지출을 삭제할 수 있습니다.",
       });
     }
-    const locked = await this.prisma.settlementRevision.findFirst({
-      where: { tripId: expense.tripId, status: "LOCKED" },
-    });
-    if (locked) {
-      throw new ForbiddenException({
-        code: "SETTLEMENT_LOCKED",
-        message: "정산이 잠긴 뒤에는 지출을 삭제할 수 없습니다.",
-      });
-    }
-    await this.prisma.expense.delete({ where: { id: expenseId } });
+    await this.assertSettlementUnlocked(expense.tripId);
+    await this.prisma.$transaction([
+      this.prisma.expense.delete({ where: { id: expenseId } }),
+      this.prisma.settlementRevision.deleteMany({
+        where: { tripId: expense.tripId, status: "DRAFT" },
+      }),
+    ]);
     return { deleted: true };
   }
 
@@ -230,6 +264,37 @@ export class ExpensesService {
     if (!settlement) throw this.settlementNotFound();
     await this.access.requireMembership(userId, settlement.tripId);
     return settlement;
+  }
+
+  private async expenseParticipantIds(
+    tripId: string,
+    input: CreateExpenseInput | UpdateExpenseInput,
+  ) {
+    const participantUserIds = [...new Set(input.participantUserIds)];
+    const members = await this.access.members(tripId);
+    const memberIds = new Set(members.map((member) => member.userId));
+    if (
+      !memberIds.has(input.payerId) ||
+      participantUserIds.some((participantId) => !memberIds.has(participantId))
+    ) {
+      throw new ForbiddenException({
+        code: "EXPENSE_MEMBER_REQUIRED",
+        message: "결제자와 분담 대상은 여행 멤버여야 합니다.",
+      });
+    }
+    return participantUserIds;
+  }
+
+  private async assertSettlementUnlocked(tripId: string) {
+    const locked = await this.prisma.settlementRevision.findFirst({
+      where: { tripId, status: "LOCKED" },
+    });
+    if (locked) {
+      throw new ForbiddenException({
+        code: "SETTLEMENT_LOCKED",
+        message: "정산이 확정된 뒤에는 지출을 수정하거나 삭제할 수 없습니다.",
+      });
+    }
   }
 
   private expenseNotFound() {

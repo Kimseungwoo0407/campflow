@@ -3,6 +3,8 @@ import {
   changePasswordSchema,
   createInviteSchema,
   createManualCandidateSchema,
+  updateExpenseSchema,
+  updateVehicleSchema,
   loginSchema,
   managerPointGrantSchema,
   managerPointSetSchema,
@@ -54,6 +56,33 @@ describe("공유 입력 계약", () => {
       distance: "서울에서 차로 1시간 20분",
       price: "4인 32만원",
     });
+  });
+
+  it("차량의 운전자·좌석·출발 정보와 탑승자를 수정한다", () => {
+    expect(
+      updateVehicleSchema.safeParse({
+        name: "2호 차량",
+        driverId: "01KYNMKJWRDZXX5C6E68TBNK1X",
+        seats: 5,
+        departureLocation: "잠실역",
+        departureAt: "2026-08-29T00:30:00.000Z",
+        note: "정시 출발",
+        passengerIds: ["01KYNMKK38GRX23J6HYQDV73NW"],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("지출의 결제자·금액·분담자를 수정한다", () => {
+    expect(
+      updateExpenseSchema.safeParse({
+        payerId: "01KYNMKJWRDZXX5C6E68TBNK1X",
+        amount: 125_000,
+        category: "ACCOMMODATION",
+        spentAt: "2026-08-29T03:00:00.000Z",
+        memo: "숙소 잔금",
+        participantUserIds: ["01KYNMKK38GRX23J6HYQDV73NW"],
+      }).success,
+    ).toBe(true);
   });
 
   it("사다리 게임은 출발·줄 수·도착 중 하나 이상을 선택한다", () => {

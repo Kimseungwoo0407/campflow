@@ -6,6 +6,7 @@ import type {
   CreateTaskInput,
   CreateVehicleInput,
   UpdateTaskInput,
+  UpdateVehicleInput,
 } from "@campflow/contracts";
 import { newId } from "@campflow/domain";
 import { createHash, randomBytes } from "node:crypto";
@@ -197,17 +198,7 @@ export class PreparationService {
 
   async createVehicle(userId: string, tripId: string, input: CreateVehicleInput) {
     await this.access.requireWriter(userId, tripId);
-    await this.assertTripMember(tripId, input.driverId);
-    const passengerIds = [...new Set(input.passengerIds)];
-    for (const passengerId of passengerIds) {
-      await this.assertTripMember(tripId, passengerId);
-    }
-    if (passengerIds.length > input.seats - 1) {
-      throw new ForbiddenException({
-        code: "VEHICLE_CAPACITY_EXCEEDED",
-        message: "운전자를 제외한 좌석 수보다 탑승자가 많습니다.",
-      });
-    }
+    const passengerIds = await this.vehiclePassengerIds(tripId, input);
     const vehicle = await this.prisma.$transaction(async (transaction) => {
       const created = await transaction.vehicle.create({
         data: {
@@ -238,6 +229,49 @@ export class PreparationService {
         owner: { select: { id: true, nickname: true } },
         driver: { select: { id: true, nickname: true } },
         passengers: { include: { user: { select: { id: true, nickname: true } } } },
+      },
+    });
+  }
+
+  async updateVehicle(userId: string, vehicleId: string, input: UpdateVehicleInput) {
+    const vehicle = await this.prisma.vehicle.findUnique({ where: { id: vehicleId } });
+    if (!vehicle) throw this.vehicleNotFound();
+    const membership = await this.access.requireMembership(userId, vehicle.tripId);
+    if (vehicle.ownerId !== userId && membership.role !== "MANAGER") {
+      throw new ForbiddenException({
+        code: "VEHICLE_OWNER_REQUIRED",
+        message: "차량 등록자 또는 여행 관리자만 수정할 수 있습니다.",
+      });
+    }
+    const passengerIds = await this.vehiclePassengerIds(vehicle.tripId, input);
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.vehicle.update({
+        where: { id: vehicleId },
+        data: {
+          driverId: input.driverId,
+          name: input.name,
+          seats: input.seats,
+          departureLocation: input.departureLocation,
+          departureAt: input.departureAt ? new Date(input.departureAt) : null,
+          note: input.note ?? null,
+        },
+      });
+      await transaction.rideAssignment.deleteMany({ where: { vehicleId } });
+      if (passengerIds.length > 0) {
+        await transaction.rideAssignment.createMany({
+          data: passengerIds.map((passengerId) => ({ vehicleId, userId: passengerId })),
+        });
+      }
+    });
+    return this.prisma.vehicle.findUniqueOrThrow({
+      where: { id: vehicleId },
+      include: {
+        owner: { select: { id: true, nickname: true } },
+        driver: { select: { id: true, nickname: true } },
+        passengers: {
+          include: { user: { select: { id: true, nickname: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
   }
@@ -374,6 +408,26 @@ export class PreparationService {
         message: "여행 멤버를 찾을 수 없습니다.",
       });
     }
+  }
+
+  private async vehiclePassengerIds(
+    tripId: string,
+    input: CreateVehicleInput | UpdateVehicleInput,
+  ) {
+    await this.assertTripMember(tripId, input.driverId);
+    const passengerIds = [...new Set(input.passengerIds)].filter(
+      (passengerId) => passengerId !== input.driverId,
+    );
+    for (const passengerId of passengerIds) {
+      await this.assertTripMember(tripId, passengerId);
+    }
+    if (passengerIds.length > input.seats - 1) {
+      throw new ForbiddenException({
+        code: "VEHICLE_CAPACITY_EXCEEDED",
+        message: "운전자를 제외한 좌석 수보다 탑승자가 많습니다.",
+      });
+    }
+    return passengerIds;
   }
 
   private storageDirectory() {

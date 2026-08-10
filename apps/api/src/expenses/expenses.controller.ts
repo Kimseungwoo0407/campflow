@@ -2,8 +2,10 @@ import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/commo
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   createExpenseSchema,
+  updateExpenseSchema,
   updatePaymentSchema,
   type CreateExpenseInput,
+  type UpdateExpenseInput,
   type UpdatePaymentInput,
 } from "@campflow/contracts";
 import { CurrentUser } from "../common/auth/current-user.decorator";
@@ -34,6 +36,15 @@ export class ExpensesController {
   @Delete("expenses/:id")
   remove(@CurrentUser() user: AuthenticatedUser, @Param("id") expenseId: string) {
     return this.expenses.remove(user.id, expenseId);
+  }
+
+  @Patch("expenses/:id")
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") expenseId: string,
+    @Body(new ZodValidationPipe(updateExpenseSchema)) input: UpdateExpenseInput,
+  ) {
+    return this.expenses.update(user.id, expenseId, input);
   }
 
   @Post("trips/:tripId/settlements/calculate")

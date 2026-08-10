@@ -5,12 +5,14 @@ import {
   createMealSchema,
   createTaskSchema,
   createVehicleSchema,
+  updateVehicleSchema,
   updateTaskSchema,
   type CreateFileUploadInput,
   type CreateMealInput,
   type CreateTaskInput,
   type CreateVehicleInput,
   type UpdateTaskInput,
+  type UpdateVehicleInput,
 } from "@campflow/contracts";
 import { CurrentUser } from "../common/auth/current-user.decorator";
 import type { AuthenticatedUser } from "../common/http/request-context";
@@ -92,6 +94,15 @@ export class PreparationController {
     @Body(new ZodValidationPipe(createVehicleSchema)) input: CreateVehicleInput,
   ) {
     return this.preparation.createVehicle(user.id, tripId, input);
+  }
+
+  @Patch("vehicles/:id")
+  updateVehicle(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") vehicleId: string,
+    @Body(new ZodValidationPipe(updateVehicleSchema)) input: UpdateVehicleInput,
+  ) {
+    return this.preparation.updateVehicle(user.id, vehicleId, input);
   }
 
   @Delete("vehicles/:id")

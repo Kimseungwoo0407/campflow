@@ -2465,6 +2465,80 @@ p {
   font-size: 0.82rem;
 }
 
+.record-create-card {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.record-create-card .section-heading-row > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.record-editor {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.record-editor__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.7rem;
+}
+
+.record-editor__grid label {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  color: #4c5260;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.member-picker {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.8rem;
+}
+
+.member-picker legend {
+  padding: 0 0.3rem;
+  color: var(--navy);
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.member-picker__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+}
+
+.member-picker small {
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+}
+
+.record-editor__actions,
+.record-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.record-card__actions {
+  margin-top: auto;
+  padding-top: 0.35rem;
+}
+
+.vehicle-card--editing {
+  grid-column: 1 / -1;
+}
+
 .avatar-stack {
   margin-top: 0.5rem;
 }
@@ -2516,6 +2590,33 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.expense-list .expense-card {
+  display: grid;
+  align-items: stretch;
+  gap: 0.85rem;
+}
+
+.expense-card > h3 {
+  margin: 0;
+}
+
+.expense-card__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.expense-card__summary > div {
+  min-width: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.expense-card__summary > b {
+  flex: 0 0 auto;
 }
 
 .expense-list .card > div,
@@ -2784,6 +2885,30 @@ textarea {
   .file-list .card {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .record-create-card .section-heading-row,
+  .expense-card__summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .record-create-card .section-heading-row small {
+    text-align: left;
+  }
+
+  .record-editor__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .record-editor__actions,
+  .record-card__actions {
+    flex-direction: column-reverse;
+  }
+
+  .record-editor__actions .button,
+  .record-card__actions .button {
+    width: 100%;
   }
 
   .payment-row {

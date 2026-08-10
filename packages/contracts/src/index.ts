@@ -324,6 +324,8 @@ export const createVehicleSchema = z
   })
   .strict();
 
+export const updateVehicleSchema = createVehicleSchema;
+
 export const createFileUploadSchema = z
   .object({
     originalName: z.string().trim().min(1).max(180),
@@ -342,6 +344,8 @@ export const createExpenseSchema = z
     participantUserIds: z.array(z.string().trim().min(10).max(40)).min(1).max(100),
   })
   .strict();
+
+export const updateExpenseSchema = createExpenseSchema;
 
 export const updatePaymentSchema = z.object({ paid: z.boolean() }).strict();
 
@@ -514,8 +518,10 @@ export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type CreateMealInput = z.infer<typeof createMealSchema>;
 export type CreateVehicleInput = z.infer<typeof createVehicleSchema>;
+export type UpdateVehicleInput = z.infer<typeof updateVehicleSchema>;
 export type CreateFileUploadInput = z.infer<typeof createFileUploadSchema>;
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
+export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
 export type UpdatePaymentInput = z.infer<typeof updatePaymentSchema>;
 export type RedeemRewardInput = z.infer<typeof redeemRewardSchema>;
 export type ManagerPointGrantInput = z.infer<typeof managerPointGrantSchema>;
