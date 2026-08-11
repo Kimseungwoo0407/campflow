@@ -10,6 +10,7 @@ import {
   createPenaltyMatchSchema,
   joinPenaltyMatchSchema,
   oddEvenGameSchema,
+  pointTransferSchema,
   redeemRewardSchema,
   rpsRouletteGameSchema,
   snailRaceGameSchema,
@@ -22,6 +23,7 @@ import {
   type CreatePenaltyMatchInput,
   type JoinPenaltyMatchInput,
   type OddEvenGameInput,
+  type PointTransferInput,
   type RedeemRewardInput,
   type RpsRouletteGameInput,
   type SnailRaceGameInput,
@@ -71,6 +73,16 @@ export class PointsController {
     @Body(new ZodValidationPipe(managerPointSetSchema)) input: ManagerPointSetInput,
   ) {
     return this.points.setPointBalance(user.id, tripId, input);
+  }
+
+  @Post("trips/:tripId/points/transfers")
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  transferPoints(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("tripId") tripId: string,
+    @Body(new ZodValidationPipe(pointTransferSchema)) input: PointTransferInput,
+  ) {
+    return this.points.transferPoints(user.id, tripId, input);
   }
 
   @Post("trips/:tripId/rewards/grants")
@@ -129,10 +141,7 @@ export class PointsController {
   }
 
   @Get("trips/:tripId/games/odd-even/rounds")
-  oddEvenRounds(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("tripId") tripId: string,
-  ) {
+  oddEvenRounds(@CurrentUser() user: AuthenticatedUser, @Param("tripId") tripId: string) {
     return this.points.gameRoundHistory(user.id, tripId, "ODD_EVEN");
   }
 

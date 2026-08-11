@@ -3285,6 +3285,43 @@ textarea {
   background: linear-gradient(145deg, #fffdf6, #fff6d9);
 }
 
+.point-transfer-card {
+  margin: 1rem 0;
+  border-color: rgb(15 118 110 / 24%);
+  background: linear-gradient(145deg, #f7fffc, #edf8f5);
+}
+
+.point-transfer-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.point-transfer-heading > svg {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  flex: 0 0 auto;
+  background: var(--teal-soft);
+  color: var(--teal);
+  padding: 0.55rem;
+}
+
+.point-transfer-heading h2,
+.point-transfer-heading p {
+  margin-bottom: 0.35rem;
+}
+
+.point-transfer-heading p {
+  color: var(--ink-muted);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.point-transfer-card .form-notice {
+  margin: 0.8rem 0 0;
+}
+
 .manager-point-grant-copy {
   display: flex;
   align-items: flex-start;
@@ -5690,6 +5727,7 @@ textarea {
   }
 
   .points-tabs,
+  .point-transfer-card,
   .manager-point-grant-card,
   .achievement-summary,
   .achievement-overall-progress,

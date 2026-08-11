@@ -29,6 +29,7 @@ import {
   managerPointGrantSchema,
   managerPointSetSchema,
   managerRewardGrantSchema,
+  pointTransferSchema,
 } from "@campflow/contracts";
 import { apiRequest } from "../api/client";
 import { useAuthStore } from "../stores/auth";
@@ -111,6 +112,10 @@ export function TripPointsPage() {
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [targetUserId, setTargetUserId] = useState("");
+  const [transferTargetUserId, setTransferTargetUserId] = useState("");
+  const [transferAmount, setTransferAmount] = useState("10");
+  const [transferNote, setTransferNote] = useState("");
+  const [transferRequestId, setTransferRequestId] = useState(() => crypto.randomUUID());
   const [grantTargetUserId, setGrantTargetUserId] = useState("");
   const [grantAmount, setGrantAmount] = useState("10");
   const [grantReason, setGrantReason] = useState("");
@@ -170,6 +175,31 @@ export function TripPointsPage() {
     },
     onSuccess: () => {
       setSellCandidate(null);
+      refresh();
+    },
+  });
+  const transferPoints = useMutation({
+    mutationFn: () => {
+      const parsed = pointTransferSchema.parse({
+        targetUserId: transferTargetUserId,
+        amount: Number(transferAmount),
+        note: transferNote,
+        clientRequestId: transferRequestId,
+      });
+      return apiRequest<{
+        debitEntry: { balanceAfter: number };
+        creditEntry: { delta: number; user: { id: string; nickname: string } };
+        duplicate: boolean;
+      }>(`trips/${tripId}/points/transfers`, {
+        method: "POST",
+        body: JSON.stringify(parsed),
+      });
+    },
+    onSuccess: () => {
+      setTransferTargetUserId("");
+      setTransferAmount("10");
+      setTransferNote("");
+      setTransferRequestId(crypto.randomUUID());
       refresh();
     },
   });
@@ -272,6 +302,7 @@ export function TripPointsPage() {
     redeem.error ??
     useGrantedReward.error ??
     sellReward.error ??
+    transferPoints.error ??
     managerGrant.error ??
     managerSetBalance.error ??
     managerGrantReward.error;
@@ -315,6 +346,84 @@ export function TripPointsPage() {
           </div>
         </Card>
       </section>
+
+      <Card className="point-transfer-card">
+        <div className="point-transfer-heading">
+          <ArrowRight />
+          <div>
+            <span className="eyebrow">멤버 간 나눔</span>
+            <h2>내 포인트 보내기</h2>
+            <p>보유 포인트 안에서 원하는 멤버에게 수수료 없이 즉시 보낼 수 있습니다.</p>
+          </div>
+        </div>
+        <form
+          className="manager-point-grant-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            transferPoints.mutate();
+          }}
+        >
+          <label>
+            <span>받을 멤버</span>
+            <select
+              className="input"
+              value={transferTargetUserId}
+              onChange={(event) => setTransferTargetUserId(event.target.value)}
+              required
+            >
+              <option value="">선택</option>
+              {data.balanceLeaderboard
+                .filter((wallet) => wallet.userId !== data.myWallet.userId)
+                .map((wallet) => (
+                  <option key={wallet.userId} value={wallet.userId}>
+                    {wallet.user.nickname}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            <span>보낼 포인트</span>
+            <input
+              className="input"
+              type="number"
+              min={1}
+              max={data.myWallet.balance}
+              step={1}
+              value={transferAmount}
+              onChange={(event) => setTransferAmount(event.target.value)}
+              required
+            />
+          </label>
+          <label>
+            <span>메모 (선택)</span>
+            <input
+              className="input"
+              value={transferNote}
+              onChange={(event) => setTransferNote(event.target.value)}
+              maxLength={100}
+              placeholder="예: 운전 고마워"
+            />
+          </label>
+          <Button
+            type="submit"
+            disabled={
+              transferPoints.isPending ||
+              !transferTargetUserId ||
+              Number(transferAmount) < 1 ||
+              Number(transferAmount) > data.myWallet.balance
+            }
+          >
+            {transferPoints.isPending ? "보내는 중…" : "포인트 보내기"}
+          </Button>
+        </form>
+        {transferPoints.isSuccess && transferPoints.data && (
+          <p className="form-notice" role="status">
+            {transferPoints.data.creditEntry.user.nickname}님에게{" "}
+            {point(transferPoints.data.creditEntry.delta)}를 보냈습니다. 남은 포인트는{" "}
+            {point(transferPoints.data.debitEntry.balanceAfter)}입니다.
+          </p>
+        )}
+      </Card>
 
       {data.myRole === "MANAGER" && (
         <Card className="manager-point-grant-card">

@@ -13,6 +13,7 @@ import {
   managerPointSetSchema,
   managerRewardGrantSchema,
   oddEvenGameSchema,
+  pointTransferSchema,
   signUpSchema,
 } from "./index";
 
@@ -197,6 +198,19 @@ describe("공유 입력 계약", () => {
     expect(managerPointSetSchema.safeParse({ ...base, balance: 0 }).success).toBe(true);
     expect(managerPointSetSchema.safeParse({ ...base, balance: -1 }).success).toBe(false);
     expect(managerPointSetSchema.safeParse({ ...base, balance: 1_000_001 }).success).toBe(false);
+  });
+
+  it("멤버 간 포인트 송금은 1P 이상과 대상 멤버를 요구한다", () => {
+    const base = {
+      targetUserId: "01KYNMKJWRDZXX5C6E68TBNK1X",
+      clientRequestId: "point-transfer-request-1",
+    };
+    expect(pointTransferSchema.safeParse({ ...base, amount: 1 }).success).toBe(true);
+    expect(pointTransferSchema.safeParse({ ...base, amount: 0 }).success).toBe(false);
+    expect(pointTransferSchema.safeParse({ ...base, amount: 1_000_001 }).success).toBe(false);
+    expect(
+      pointTransferSchema.safeParse({ ...base, amount: 10, note: "a".repeat(101) }).success,
+    ).toBe(false);
   });
 
   it("관리자 아이템 지급은 아이템과 1~100개 수량을 요구한다", () => {

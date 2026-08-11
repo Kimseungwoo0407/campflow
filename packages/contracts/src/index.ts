@@ -391,6 +391,19 @@ export const managerPointSetSchema = z
   })
   .strict();
 
+export const pointTransferSchema = z
+  .object({
+    targetUserId: z.string().trim().min(10).max(40),
+    amount: z
+      .number()
+      .int()
+      .min(1, "최소 1P 이상 보내야 합니다.")
+      .max(1_000_000, "한 번에 최대 1,000,000P까지 보낼 수 있습니다."),
+    note: z.string().trim().max(100, "메모는 최대 100자까지 입력할 수 있습니다.").optional(),
+    clientRequestId: z.string().trim().min(8).max(80),
+  })
+  .strict();
+
 export const managerRewardGrantSchema = z
   .object({
     targetUserId: z.string().trim().min(10).max(40),
@@ -533,6 +546,7 @@ export type UpdatePaymentInput = z.infer<typeof updatePaymentSchema>;
 export type RedeemRewardInput = z.infer<typeof redeemRewardSchema>;
 export type ManagerPointGrantInput = z.infer<typeof managerPointGrantSchema>;
 export type ManagerPointSetInput = z.infer<typeof managerPointSetSchema>;
+export type PointTransferInput = z.infer<typeof pointTransferSchema>;
 export type ManagerRewardGrantInput = z.infer<typeof managerRewardGrantSchema>;
 export type AchievementKey = z.infer<typeof achievementKeySchema>;
 export type OddEvenGameInput = z.infer<typeof oddEvenGameSchema>;

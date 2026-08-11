@@ -9,12 +9,12 @@ import {
 } from "./points.service";
 
 describe("포인트 게임 순이익 배수", () => {
-  it("짱깸보 10P의 5배 당첨은 판돈 반환과 별도로 50P 순이익을 준다", () => {
+  it("짱깸보 10P의 4배 당첨은 판돈 반환과 별도로 40P 순이익을 준다", () => {
     const wager = 10;
-    const credited = payoutWithProfitMultiplier(wager, 5);
+    const credited = payoutWithProfitMultiplier(wager, 4);
 
-    expect(credited).toBe(60);
-    expect(credited - wager).toBe(50);
+    expect(credited).toBe(50);
+    expect(credited - wager).toBe(40);
   });
 
   it("사다리는 판돈에 배수를 곱한 금액만 총 지급한다", () => {
@@ -27,11 +27,11 @@ describe("포인트 게임 순이익 배수", () => {
 
   it("짱깸보 승리 룰렛의 다섯 배수는 모두 20% 확률이다", () => {
     expect(rpsMultipliers).toEqual([
+      expect.objectContaining({ multiplier: 1, weight: 200_000, probability: "20%" }),
       expect.objectContaining({ multiplier: 2, weight: 200_000, probability: "20%" }),
       expect.objectContaining({ multiplier: 3, weight: 200_000, probability: "20%" }),
-      expect.objectContaining({ multiplier: 5, weight: 200_000, probability: "20%" }),
+      expect.objectContaining({ multiplier: 4, weight: 200_000, probability: "20%" }),
       expect.objectContaining({ multiplier: 10, weight: 200_000, probability: "20%" }),
-      expect.objectContaining({ multiplier: 100, weight: 200_000, probability: "20%" }),
     ]);
     expect(rpsMultipliers.reduce((total, outcome) => total + outcome.weight, 0)).toBe(1_000_000);
   });
@@ -45,7 +45,7 @@ describe("포인트 게임 순이익 배수", () => {
     expect(rpsOutcomeProbabilities.reduce((total, outcome) => total + outcome.weight, 0)).toBe(
       1_000_000,
     );
-    expect(expectedRpsNetMultiplier()).toBeCloseTo(2.95);
+    expect(expectedRpsNetMultiplier()).toBeCloseTo(-0.05);
   });
 });
 

@@ -263,6 +263,58 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
     expect(duplicateBalanceSet.body.data.entry.id).toBe(balanceSet.body.data.entry.id);
     expect(duplicateBalanceSet.body.data.duplicate).toBe(true);
 
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/transfers`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({
+        targetUserId: friend.user.id,
+        amount: 50,
+        clientRequestId: randomUUID(),
+      })
+      .expect(409);
+    await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/transfers`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({
+        targetUserId: owner.user.id,
+        amount: 10_000,
+        clientRequestId: randomUUID(),
+      })
+      .expect(409);
+    const transferRequestId = randomUUID();
+    const pointTransfer = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/transfers`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({
+        targetUserId: owner.user.id,
+        amount: 50,
+        note: "운전 고마워",
+        clientRequestId: transferRequestId,
+      })
+      .expect(201);
+    expect(pointTransfer.body).toMatchObject({
+      data: {
+        duplicate: false,
+        debitEntry: { user: { id: friend.user.id }, delta: -50, balanceAfter: 450 },
+        creditEntry: { user: { id: owner.user.id }, delta: 50 },
+      },
+    });
+    const duplicatePointTransfer = await request(app.getHttpServer())
+      .post(`/v1/trips/${trip.id}/points/transfers`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({
+        targetUserId: owner.user.id,
+        amount: 50,
+        note: "운전 고마워",
+        clientRequestId: transferRequestId,
+      })
+      .expect(201);
+    expect(duplicatePointTransfer.body.data).toMatchObject({
+      duplicate: true,
+      debitEntry: { id: pointTransfer.body.data.debitEntry.id, balanceAfter: 450 },
+      creditEntry: { id: pointTransfer.body.data.creditEntry.id },
+    });
+
     const rewardDashboard = await request(app.getHttpServer())
       .get(`/v1/trips/${trip.id}/points`)
       .set("authorization", `Bearer ${owner.accessToken}`)

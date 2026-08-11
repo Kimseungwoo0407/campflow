@@ -7,6 +7,7 @@ import type {
   ManagerPointGrantInput,
   ManagerPointSetInput,
   ManagerRewardGrantInput,
+  PointTransferInput,
   OddEvenGameInput,
   CreatePenaltyMatchInput,
   JoinPenaltyMatchInput,
@@ -100,11 +101,11 @@ const lotteryTiers = [
 ] as const;
 
 export const rpsMultipliers = [
+  { multiplier: 1, weight: 200_000, probability: "20%" },
   { multiplier: 2, weight: 200_000, probability: "20%" },
   { multiplier: 3, weight: 200_000, probability: "20%" },
-  { multiplier: 5, weight: 200_000, probability: "20%" },
+  { multiplier: 4, weight: 200_000, probability: "20%" },
   { multiplier: 10, weight: 200_000, probability: "20%" },
-  { multiplier: 100, weight: 200_000, probability: "20%" },
 ] as const;
 
 export const rpsOutcomeProbabilities = [
@@ -884,6 +885,133 @@ export class PointsService {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         const duplicate = await findExisting();
         if (duplicate) return { entry: duplicate, duplicate: true };
+      }
+      throw error;
+    }
+  }
+
+  async transferPoints(senderId: string, tripId: string, input: PointTransferInput) {
+    await this.access.requireMembership(senderId, tripId);
+    if (senderId === input.targetUserId) {
+      throw new ConflictException({
+        code: "POINT_SELF_TRANSFER_FORBIDDEN",
+        message: "본인에게는 포인트를 보낼 수 없습니다.",
+      });
+    }
+    await this.access.requireMembership(input.targetUserId, tripId);
+    const [sender, target] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: senderId },
+        select: { id: true, nickname: true },
+      }),
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: input.targetUserId },
+        select: { id: true, nickname: true },
+      }),
+    ]);
+    const transferKey = `member-transfer:${senderId}:${input.clientRequestId}`;
+    const debitSourceKey = `${transferKey}:debit`;
+    const creditSourceKey = `${transferKey}:credit`;
+    const findExisting = async () => {
+      const [debitEntry, creditEntry] = await Promise.all([
+        this.prisma.pointLedger.findUnique({
+          where: {
+            tripId_userId_sourceKey: { tripId, userId: senderId, sourceKey: debitSourceKey },
+          },
+          include: { user: { select: { id: true, nickname: true } } },
+        }),
+        this.prisma.pointLedger.findUnique({
+          where: {
+            tripId_userId_sourceKey: {
+              tripId,
+              userId: input.targetUserId,
+              sourceKey: creditSourceKey,
+            },
+          },
+          include: { user: { select: { id: true, nickname: true } } },
+        }),
+      ]);
+      return debitEntry && creditEntry ? { debitEntry, creditEntry, duplicate: true } : null;
+    };
+    const existing = await findExisting();
+    if (existing) return existing;
+
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        await this.changeBalance(
+          transaction,
+          tripId,
+          senderId,
+          -input.amount,
+          "ADJUST",
+          `${target.nickname}님에게 포인트 보내기`,
+          debitSourceKey,
+          {
+            category: "MEMBER_TRANSFER",
+            direction: "DEBIT",
+            senderId,
+            targetUserId: input.targetUserId,
+            amount: input.amount,
+            ...(input.note ? { note: input.note } : {}),
+          },
+        );
+        await this.changeBalance(
+          transaction,
+          tripId,
+          input.targetUserId,
+          input.amount,
+          "ADJUST",
+          `${sender.nickname}님에게 받은 포인트`,
+          creditSourceKey,
+          {
+            category: "MEMBER_TRANSFER",
+            direction: "CREDIT",
+            senderId,
+            targetUserId: input.targetUserId,
+            amount: input.amount,
+            ...(input.note ? { note: input.note } : {}),
+          },
+        );
+        const [debitEntry, creditEntry] = await Promise.all([
+          transaction.pointLedger.findUniqueOrThrow({
+            where: {
+              tripId_userId_sourceKey: { tripId, userId: senderId, sourceKey: debitSourceKey },
+            },
+            include: { user: { select: { id: true, nickname: true } } },
+          }),
+          transaction.pointLedger.findUniqueOrThrow({
+            where: {
+              tripId_userId_sourceKey: {
+                tripId,
+                userId: input.targetUserId,
+                sourceKey: creditSourceKey,
+              },
+            },
+            include: { user: { select: { id: true, nickname: true } } },
+          }),
+        ]);
+        await transaction.auditLog.create({
+          data: {
+            id: newId(),
+            actorId: senderId,
+            action: "points.member_transfer",
+            targetType: "PointWallet",
+            targetId: input.targetUserId,
+            metadataSafe: {
+              tripId,
+              amount: input.amount,
+              ...(input.note ? { note: input.note } : {}),
+              debitPointLedgerId: debitEntry.id,
+              creditPointLedgerId: creditEntry.id,
+            },
+          },
+        });
+        return { debitEntry, creditEntry, duplicate: false };
+      });
+    } catch (error: unknown) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const duplicate = await findExisting();
+        if (duplicate) return duplicate;
       }
       throw error;
     }

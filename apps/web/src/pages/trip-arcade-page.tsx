@@ -92,8 +92,6 @@ const rpsSymbol: Record<RpsChoice, string> = {
   SCISSORS: "✌️",
 };
 
-const rpsWheelMultipliers = [2, 3, 5, 10, 100] as const;
-
 function numberResult(result: Record<string, unknown>, key: string, fallback = 0): number {
   return typeof result[key] === "number" ? result[key] : fallback;
 }
@@ -436,7 +434,9 @@ export function TripArcadePage() {
   const rpsOutcome = stringResult(animationResult?.result ?? {}, "outcome");
   const rpsWheelIndex = Math.max(
     0,
-    rpsWheelMultipliers.findIndex((multiplier) => multiplier === rpsMultiplier),
+    data.rules.games.rpsRoulette.multipliers.findIndex(
+      (outcome) => outcome.multiplier === rpsMultiplier,
+    ),
   );
   const rpsWheelTurn = 1_800 - rpsWheelIndex * 72;
   const lotteryDraw =
@@ -905,11 +905,9 @@ export function TripArcadePage() {
                 } as CSSProperties
               }
             >
-              <span>×2</span>
-              <span>×3</span>
-              <span>×5</span>
-              <span>×10</span>
-              <span>×100</span>
+              {data.rules.games.rpsRoulette.multipliers.map((outcome) => (
+                <span key={outcome.multiplier}>×{outcome.multiplier}</span>
+              ))}
             </div>
             <b className="roulette-equal-badge">각 20%</b>
           </div>
