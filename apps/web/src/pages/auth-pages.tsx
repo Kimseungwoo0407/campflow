@@ -81,7 +81,7 @@ export function LoginPage() {
           <Button type="button" onClick={enterDemo}>
             데모로 바로 입장
           </Button>
-          <p>홈 서버 로그인 없이 로컬 데모 화면과 게임을 둘러볼 수 있습니다.</p>
+          <p>서버 연결 없이도 여행 준비의 모든 주요 화면과 게임을 둘러볼 수 있습니다.</p>
         </div>
       )}
       <form className="stack-form" onSubmit={(event) => void handleSubmit(submit)(event)} noValidate>

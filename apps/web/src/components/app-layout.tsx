@@ -15,6 +15,7 @@ import { Button } from "@campflow/ui";
 import { apiRequest, readCsrfToken } from "../api/client";
 import { useAuthStore } from "../stores/auth";
 import { ServerStatusBanner } from "./server-status-banner";
+import { hasDemoSession, isDemoMode } from "../lib/demo-session";
 
 const navItems = [
   { to: "/app", label: "홈", icon: Home },
@@ -28,6 +29,7 @@ export function AppLayout({ serverOnline }: { serverOnline: boolean }) {
   const user = useAuthStore((state) => state.user);
   const setAnonymous = useAuthStore((state) => state.setAnonymous);
   const navigate = useNavigate();
+  const demoActive = isDemoMode() && hasDemoSession();
 
   async function logout() {
     try {
@@ -60,6 +62,7 @@ export function AppLayout({ serverOnline }: { serverOnline: boolean }) {
           ))}
         </nav>
         <div className="topbar__actions">
+          {demoActive && <span className="badge">데모 · 조회 전용</span>}
           <button className="icon-button" aria-label="알림">
             <Bell size={20} />
           </button>

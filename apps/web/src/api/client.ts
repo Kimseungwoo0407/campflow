@@ -5,6 +5,7 @@ import {
   hasDemoSession,
   isDemoMode,
 } from "../lib/demo-session";
+import { demoRequest } from "./demo-provider";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/v1").replace(
   /\/$/,
@@ -66,6 +67,10 @@ export async function apiRequest<T>(
   init: RequestInit = {},
   retryAuthentication = true,
 ): Promise<T> {
+  if (isDemoMode() && hasDemoSession()) {
+    return demoRequest<T>(path, init);
+  }
+
   const headers = new Headers(init.headers);
   if (init.body !== undefined && !headers.has("content-type")) {
     headers.set("content-type", "application/json");

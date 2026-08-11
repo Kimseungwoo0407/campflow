@@ -35,6 +35,7 @@ import {
 import { useAuthStore } from "./stores/auth";
 import { TripPointsPage } from "./pages/trip-points-page";
 import { AfterglowErrorBoundary } from "./games/afterglow-frontier/AfterglowErrorBoundary";
+import { hasDemoSession, isDemoMode } from "./lib/demo-session";
 
 const AfterglowFrontierPage = lazy(
   () => import("./games/afterglow-frontier/AfterglowFrontierPage"),
@@ -43,6 +44,7 @@ const AfterglowFrontierPage = lazy(
 export function App() {
   const setSession = useAuthStore((state) => state.setSession);
   const setAnonymous = useAuthStore((state) => state.setAnonymous);
+  const authStatus = useAuthStore((state) => state.status);
   const health = useQuery({
     queryKey: ["server-health"],
     queryFn: () => apiRequest<{ status: string }>("health/live", {}, false),
@@ -54,7 +56,8 @@ export function App() {
     void restoreSession().then(setSession).catch(setAnonymous);
   }, [setAnonymous, setSession]);
 
-  const serverOnline = health.isPending || health.isSuccess;
+  const demoActive = authStatus === "authenticated" && isDemoMode() && hasDemoSession();
+  const serverOnline = demoActive || health.isPending || health.isSuccess;
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
