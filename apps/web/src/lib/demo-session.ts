@@ -1,4 +1,5 @@
 import type { AuthResult } from "@campflow/contracts";
+import snapshot from "../api/demo-snapshot.json";
 
 const DEMO_SESSION_KEY = "campflow_demo_session";
 
@@ -10,14 +11,7 @@ export function createDemoSession(): AuthResult {
   return {
     accessToken: "",
     csrfToken: "",
-    user: {
-      id: "public-demo-user",
-      username: "demo",
-      email: "demo@campflow.local",
-      nickname: "데모 여행자",
-      locale: "ko-KR",
-      timezone: "Asia/Seoul",
-    },
+    user: snapshot.sessionUser,
   };
 }
 

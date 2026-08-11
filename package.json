@@ -20,7 +20,8 @@
     "db:generate": "pnpm --filter @campflow/api prisma:generate",
     "db:migrate": "pnpm --filter @campflow/api prisma:migrate",
     "db:deploy": "pnpm --filter @campflow/api prisma:deploy",
-    "db:seed": "pnpm --filter @campflow/api prisma:seed"
+    "db:seed": "pnpm --filter @campflow/api prisma:seed",
+    "demo:snapshot": "node scripts/export-demo-snapshot.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

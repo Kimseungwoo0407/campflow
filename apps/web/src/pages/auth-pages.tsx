@@ -65,6 +65,13 @@ export function LoginPage() {
       const state = location.state as { from?: string } | null;
       navigate(state?.from ?? "/app", { replace: true });
     } catch (error: unknown) {
+      if (
+        isDemoMode() &&
+        (!(error instanceof ApiClientError) || error.code === "SERVER_OFFLINE" || error.status === 0)
+      ) {
+        enterDemo();
+        return;
+      }
       setError("root", {
         message:
           error instanceof ApiClientError

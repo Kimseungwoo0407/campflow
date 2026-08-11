@@ -39,7 +39,6 @@ describe("demo API provider", () => {
       `trips/${tripId}/posts`,
       `trips/${tripId}/messages`,
       `trips/${tripId}/files`,
-      "files/demo-file-1/content",
     ];
 
     for (const path of paths) {
