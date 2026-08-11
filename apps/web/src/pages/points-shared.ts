@@ -14,18 +14,6 @@ export interface PointWallet {
   user: UserRef;
 }
 
-export interface PointEntry {
-  id: string;
-  delta: number;
-  balanceAfter: number;
-  kind: "EARN" | "SPEND" | "WIN" | "LOSS" | "ADJUST";
-  reason: string;
-  sourceKey: string | null;
-  metadata: unknown;
-  createdAt: string;
-  user: UserRef;
-}
-
 export interface Achievement {
   key: string;
   title: string;
@@ -141,7 +129,7 @@ export interface PointsDashboard {
   myRole: "MANAGER" | "MEMBER" | "GUEST";
   balanceLeaderboard: PointWallet[];
   activityLeaderboard: PointWallet[];
-  recentEntries: PointEntry[];
+  recentPointResults: GameRound[];
   rewards: RewardItem[];
   rewardInventory: RewardInventoryEntry[];
   recentRedemptions: RewardRedemption[];

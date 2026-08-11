@@ -478,7 +478,7 @@ export class PointsService {
     const { start: todayStart, end: todayEnd } = this.kstDayRange();
     const [
       wallets,
-      recentEntries,
+      recentPointResults,
       rewards,
       recentRedemptions,
       grantedRewards,
@@ -489,8 +489,8 @@ export class PointsService {
         where: { tripId },
         include: { user: { select: { id: true, nickname: true } } },
       }),
-      this.prisma.pointLedger.findMany({
-        where: { tripId },
+      this.prisma.gameRound.findMany({
+        where: { tripId, pointDelta: { not: 0 } },
         include: { user: { select: { id: true, nickname: true } } },
         orderBy: { createdAt: "desc" },
         take: 30,
@@ -599,7 +599,7 @@ export class PointsService {
       myRole: membership.role,
       balanceLeaderboard: byBalance,
       activityLeaderboard: byActivity,
-      recentEntries,
+      recentPointResults,
       rewards,
       rewardInventory: [...inventoryByMemberAndItem.values()],
       recentRedemptions,

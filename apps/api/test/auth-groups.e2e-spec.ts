@@ -644,14 +644,20 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
         }),
       ]),
     );
-    expect(pointsDashboard.body.data.recentEntries).toEqual(
+    expect(pointsDashboard.body.data).not.toHaveProperty("recentEntries");
+    expect(pointsDashboard.body.data.recentPointResults).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          delta: 100,
-          reason: expect.stringContaining("관리자 공개 지급"),
+          gameType: "TAP",
+          pointDelta: 15,
         }),
       ]),
     );
+    expect(
+      pointsDashboard.body.data.recentPointResults.every(
+        (round: { pointDelta: number }) => round.pointDelta !== 0,
+      ),
+    ).toBe(true);
     expect(pointsDashboard.body.data.rules.games.lottery.tiers[0]).toMatchObject({
       probability: "0.0000001%",
     });

@@ -35,6 +35,7 @@ import { useAuthStore } from "../stores/auth";
 import { PointsTabs } from "./points-tabs";
 import { RewardSaleDialog } from "./reward-sale-dialog";
 import {
+  gameName,
   point,
   time,
   type PointsDashboard,
@@ -826,31 +827,25 @@ export function TripPointsPage() {
         <div className="section-heading-row">
           <div>
             <h2>
-              <History size={19} /> 전체 공개 포인트 내역
+              <History size={19} /> 전체 공개 포인트 손익
             </h2>
-            <small>관리자 지급을 포함해 모든 멤버에게 동일한 기록이 표시됩니다.</small>
+            <small>게임에서 딴 포인트와 잃은 포인트만 모든 멤버에게 표시됩니다.</small>
           </div>
         </div>
         <Card className="point-ledger-card">
           <div className="history-list">
-            {data.recentEntries.length === 0 && (
-              <p className="empty-inline">아직 포인트 내역이 없습니다.</p>
+            {data.recentPointResults.length === 0 && (
+              <p className="empty-inline">아직 포인트 손익 내역이 없습니다.</p>
             )}
-            {data.recentEntries.map((entry) => (
-              <div key={entry.id}>
+            {data.recentPointResults.map((round) => (
+              <div key={round.id}>
                 <span>
-                  {entry.user.nickname} · {time(entry.createdAt)}
+                  {round.user.nickname} · {time(round.createdAt)}
                 </span>
-                <strong>
-                  {entry.sourceKey?.startsWith("manager-set:")
-                    ? "관리자 잔액 설정"
-                    : entry.sourceKey?.startsWith("manager-grant:")
-                      ? "관리자 공개 지급"
-                      : entry.reason}
-                </strong>
-                <b className={entry.delta >= 0 ? "point-positive" : "point-negative"}>
-                  {entry.delta >= 0 ? "+" : ""}
-                  {point(entry.delta)}
+                <strong>{gameName(round.gameType)}</strong>
+                <b className={round.pointDelta > 0 ? "point-positive" : "point-negative"}>
+                  {round.pointDelta > 0 ? "+" : ""}
+                  {point(round.pointDelta)}
                 </b>
               </div>
             ))}
