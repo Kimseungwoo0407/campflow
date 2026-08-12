@@ -47,6 +47,46 @@ describe("demo API provider", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it("keeps the saved place comparison in the offline demo", async () => {
+    vi.stubEnv("VITE_DEMO_MODE", "true");
+    sessionStorage.setItem("campflow_demo_session", "active");
+
+    const candidates = await apiRequest<
+      Array<{
+        place: { canonicalName: string; address: string; sourceUrl: string | null };
+        note: string | null;
+        priceNote: string | null;
+        addedBy: { nickname: string };
+      }>
+    >(`trips/${demoIds.tripId}/candidates`);
+
+    expect(candidates).toHaveLength(8);
+    expect(candidates.map((candidate) => candidate.place.canonicalName)).toEqual([
+      "산마루글램핑카라반",
+      "가평명지산카라반글램핑",
+      "대부도 문글램핑",
+      "더비치글램핑",
+      "대부도 캠핑성",
+      "가평 채움카라반글램핑",
+      "가평원더풀카라반&글램핑",
+      "사계돔글램핑",
+    ]);
+    expect(candidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          place: expect.objectContaining({
+            canonicalName: "사계돔글램핑",
+            address: "경기 양평군 서종면 황순원로 414-47",
+            sourceUrl: expect.stringContaining("map.naver.com"),
+          }),
+          note: "신천역에서 1시간 20분",
+          priceNote: "330,000 (인원추가 + 바베큐)",
+          addedBy: expect.objectContaining({ nickname: "승우" }),
+        }),
+      ]),
+    );
+  });
+
   it("keeps demo mode read-only", async () => {
     vi.stubEnv("VITE_DEMO_MODE", "true");
     sessionStorage.setItem("campflow_demo_session", "active");
