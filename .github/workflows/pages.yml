@@ -36,7 +36,7 @@ jobs:
       - run: pnpm --filter @campflow/web build
         env:
           # Temporary Quick Tunnel endpoint for 2026-08-07.
-          VITE_API_BASE_URL: https://angela-gathered-parts-bug.trycloudflare.com/v1
+          VITE_API_BASE_URL: https://slow-realtor-declared-newer.trycloudflare.com/v1
           VITE_GITHUB_PAGES_BASE: ${{ vars.VITE_GITHUB_PAGES_BASE || '/' }}
           VITE_DEMO_MODE: "true"
       - uses: actions/upload-pages-artifact@v3
