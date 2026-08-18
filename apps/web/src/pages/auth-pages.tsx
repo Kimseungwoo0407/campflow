@@ -8,7 +8,12 @@ import {
   type LoginInput,
 } from "@campflow/contracts";
 import { apiRequest, ApiClientError } from "../api/client";
-import { createDemoSession, isDemoMode, saveDemoSession } from "../lib/demo-session";
+import {
+  clearDemoSession,
+  createDemoSession,
+  isDemoMode,
+  saveDemoSession,
+} from "../lib/demo-session";
 import { useAuthStore } from "../stores/auth";
 
 function AuthShell({ children, title, lead }: { children: React.ReactNode; title: string; lead: string }) {
@@ -55,6 +60,9 @@ export function LoginPage() {
   }
 
   async function submit(input: LoginInput) {
+    // A user can leave the read-only demo and sign in without first logging out.
+    // Clear the demo marker so the login request reaches the real API.
+    clearDemoSession();
     try {
       const result = await apiRequest<AuthResult>(
         "auth/login",

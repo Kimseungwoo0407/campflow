@@ -66,4 +66,50 @@ describe("LoginPage", () => {
     await vi.waitFor(() => expect(useAuthStore.getState().status).toBe("authenticated"));
     expect(sessionStorage.getItem("campflow_demo_session")).toBe("active");
   });
+
+  it("데모 세션에서 실제 로그인을 시도하면 데모를 종료하고 API를 호출한다", async () => {
+    vi.stubEnv("VITE_DEMO_MODE", "true");
+    sessionStorage.setItem("campflow_demo_session", "active");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            accessToken: "real-access-token",
+            csrfToken: "real-csrf-token",
+            user: {
+              id: "real-user",
+              username: "owner",
+              email: "owner@example.com",
+              nickname: "실제 사용자",
+              locale: "ko-KR",
+              timezone: "Asia/Seoul",
+            },
+          },
+          meta: { requestId: "request-1", serverTime: new Date().toISOString() },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    const { container } = render(
+      <MemoryRouter>
+        <LoginPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(container.querySelector("#login-identifier")!, {
+      target: { value: "owner" },
+    });
+    fireEvent.change(container.querySelector("#login-password")!, {
+      target: { value: "CampFlow2026!" },
+    });
+    fireEvent.submit(container.querySelector("form")!);
+
+    await vi.waitFor(() => expect(useAuthStore.getState().user?.id).toBe("real-user"));
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/auth/login"),
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(sessionStorage.getItem("campflow_demo_session")).toBeNull();
+  });
 });
