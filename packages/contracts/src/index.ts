@@ -209,11 +209,28 @@ export const createPollSchema = z
     title: z.string().trim().min(2).max(120),
     description: z.string().trim().max(500).optional(),
     optionLabels: z.array(z.string().trim().min(1).max(120)).min(2).max(12),
+    maxSelections: z.number().int().min(1).max(12).optional(),
     anonymous: z.boolean().default(false),
     resultsVisibility: z.enum(["ALWAYS", "AFTER_CLOSE"]).default("ALWAYS"),
     closesAt: z.string().datetime().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (value.maxSelections !== undefined && value.maxSelections > value.optionLabels.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["maxSelections"],
+        message: "최대 선택 개수는 선택지 수보다 클 수 없습니다.",
+      });
+    }
+    if (value.type === "SINGLE" && value.maxSelections !== undefined && value.maxSelections !== 1) {
+      context.addIssue({
+        code: "custom",
+        path: ["maxSelections"],
+        message: "단일 선택 투표는 최대 1개만 선택할 수 있습니다.",
+      });
+    }
+  });
 
 export const pollVoteSchema = z
   .object({

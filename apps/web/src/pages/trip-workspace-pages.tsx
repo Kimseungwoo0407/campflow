@@ -35,6 +35,7 @@ import { useState } from "react";
 import { Link, NavLink, useParams } from "react-router-dom";
 import { Button, Card, EmptyState, Spinner } from "@campflow/ui";
 import { apiRequest } from "../api/client";
+import { nextPollSelection } from "./poll-selection";
 
 interface UserRef {
   id: string;
@@ -84,6 +85,7 @@ interface Poll {
   type: string;
   status: "OPEN" | "CLOSED" | "CANCELLED";
   options: PollOption[];
+  maxSelections?: number;
   voteCount: number;
   myVote: { optionIds?: string[] } | null;
   results: PollResult[] | null;
@@ -104,6 +106,10 @@ interface ItineraryItem {
   title: string;
   startsAt: string | null;
   assignee: UserRef | null;
+}
+
+function pollSelectionLimit(poll: Poll) {
+  return poll.maxSelections ?? (poll.type === "SINGLE" ? 1 : poll.options.length);
 }
 
 interface ItineraryDay {
@@ -1122,20 +1128,24 @@ export function TripPollsPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [options, setOptions] = useState("");
+  const [maxSelections, setMaxSelections] = useState(1);
   const [commentByPoll, setCommentByPoll] = useState<Record<string, string>>({});
   const optionLabels = options
     .split(/[\n,]/)
     .map((item) => item.trim())
     .filter(Boolean);
+  const availableMaxSelections = Math.max(1, Math.min(12, optionLabels.length));
+  const configuredMaxSelections = Math.min(maxSelections, availableMaxSelections);
   const create = useMutation({
     mutationFn: () =>
       apiRequest<Poll>(`trips/${tripId}/polls`, {
         method: "POST",
         body: JSON.stringify({
-          type: "SINGLE",
+          type: configuredMaxSelections === 1 ? "SINGLE" : "MULTIPLE",
           title,
           ...(description.trim() ? { description } : {}),
           optionLabels,
+          maxSelections: configuredMaxSelections,
           anonymous: false,
           resultsVisibility: "ALWAYS",
         }),
@@ -1144,14 +1154,15 @@ export function TripPollsPage() {
       setTitle("");
       setDescription("");
       setOptions("");
+      setMaxSelections(1);
       void queryClient.invalidateQueries({ queryKey: ["polls", tripId] });
     },
   });
   const vote = useMutation({
-    mutationFn: ({ pollId, optionId }: { pollId: string; optionId: string }) =>
+    mutationFn: ({ pollId, optionIds }: { pollId: string; optionIds: string[] }) =>
       apiRequest(`polls/${pollId}/votes`, {
         method: "POST",
-        body: JSON.stringify({ optionIds: [optionId] }),
+        body: JSON.stringify({ optionIds }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["polls", tripId] }),
   });
@@ -1190,7 +1201,7 @@ export function TripPollsPage() {
         <div>
           <span className="eyebrow">새 안건</span>
           <h2>무엇을 정할까요?</h2>
-          <p>선택지는 한 줄에 하나씩 적어 주세요. 만든 뒤에는 한 항목을 골라 투표합니다.</p>
+          <p>선택지는 한 줄에 하나씩 적어 주세요. 한 사람이 몇 개까지 고를지도 정할 수 있어요.</p>
         </div>
         <form
           className="poll-create-form"
@@ -1231,10 +1242,38 @@ export function TripPollsPage() {
             />
             <span>최소 2개 · 줄바꿈 또는 쉼표로 구분</span>
           </label>
+          <label htmlFor="poll-max-selections">
+            1인 최대 선택 개수
+            <select
+              id="poll-max-selections"
+              className="input"
+              value={configuredMaxSelections}
+              disabled={optionLabels.length < 2}
+              onChange={(event) => setMaxSelections(Number(event.target.value))}
+            >
+              {Array.from({ length: availableMaxSelections }, (_, index) => index + 1).map(
+                (count) => (
+                  <option key={count} value={count}>
+                    {count}개
+                  </option>
+                ),
+              )}
+            </select>
+            <span>
+              {configuredMaxSelections === 1
+                ? "각자 하나만 선택하는 투표예요."
+                : `각자 최대 ${configuredMaxSelections}개까지 선택할 수 있어요.`}
+            </span>
+          </label>
           <div className="poll-create-form__actions">
             <Button
               type="submit"
-              disabled={create.isPending || title.trim().length < 2 || optionLabels.length < 2}
+              disabled={
+                create.isPending ||
+                title.trim().length < 2 ||
+                optionLabels.length < 2 ||
+                optionLabels.length > 12
+              }
             >
               <Plus size={17} />
               투표 만들기
@@ -1262,16 +1301,23 @@ export function TripPollsPage() {
               <strong>{poll.voteCount}명 참여</strong>
             </div>
             {poll.description && <p>{poll.description}</p>}
-            <div className="poll-guide" role="status">
+            <div className="poll-guide" id={`poll-guide-${poll.id}`} role="status">
               {poll.status !== "OPEN"
                 ? "마감된 투표입니다. 최종 결과를 확인해 주세요."
-                : poll.myVote
-                  ? "선택한 항목을 다시 누르거나 다른 항목을 눌러 변경할 수 있어요."
-                  : "아래에서 한 항목을 선택해 주세요."}
+                : (poll.myVote?.optionIds?.length ?? 0) > 0
+                  ? pollSelectionLimit(poll) === 1
+                    ? "다른 항목을 누르면 선택이 변경됩니다."
+                    : `${poll.myVote?.optionIds?.length ?? 0}/${pollSelectionLimit(poll)}개 선택됨 · 선택한 항목을 다시 누르면 해제됩니다.`
+                  : pollSelectionLimit(poll) === 1
+                    ? "아래에서 한 항목을 선택해 주세요."
+                    : `아래에서 최대 ${pollSelectionLimit(poll)}개까지 선택해 주세요.`}
             </div>
             <div className="poll-options" aria-label={`${poll.title} 선택지`}>
               {poll.options.map((option) => {
-                const selected = poll.myVote?.optionIds?.includes(option.id) ?? false;
+                const selectedOptionIds = poll.myVote?.optionIds ?? [];
+                const selected = selectedOptionIds.includes(option.id);
+                const selectionLimit = pollSelectionLimit(poll);
+                const selectionLimitReached = selectedOptionIds.length >= selectionLimit;
                 const count = poll.results?.find((result) => result.id === option.id)?.count;
                 const percentage =
                   count === undefined || poll.voteCount === 0
@@ -1279,12 +1325,26 @@ export function TripPollsPage() {
                     : Math.round((count / poll.voteCount) * 100);
                 return (
                   <button
-                    className={selected ? "poll-option poll-option--selected" : "poll-option"}
+                    className={`${selected ? "poll-option poll-option--selected" : "poll-option"}${selectionLimitReached && !selected ? " poll-option--limit-disabled" : ""}`}
                     key={option.id}
                     type="button"
                     aria-pressed={selected}
-                    disabled={poll.status !== "OPEN" || vote.isPending}
-                    onClick={() => vote.mutate({ pollId: poll.id, optionId: option.id })}
+                    aria-describedby={`poll-guide-${poll.id}`}
+                    disabled={
+                      poll.status !== "OPEN" ||
+                      vote.isPending ||
+                      (selectionLimitReached && !selected)
+                    }
+                    onClick={() => {
+                      const optionIds = nextPollSelection(
+                        selectedOptionIds,
+                        option.id,
+                        selectionLimit,
+                      );
+                      if (optionIds !== selectedOptionIds) {
+                        vote.mutate({ pollId: poll.id, optionIds });
+                      }
+                    }}
                   >
                     <span className="poll-option__main">
                       <i className="poll-option__check" aria-hidden="true">

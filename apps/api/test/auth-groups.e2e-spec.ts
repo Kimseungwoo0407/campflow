@@ -602,9 +602,10 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
       .post(`/v1/trips/${trip.id}/polls`)
       .set("authorization", `Bearer ${owner.accessToken}`)
       .send({
-        type: "SINGLE",
+        type: "MULTIPLE",
         title: "E2E 메뉴 투표",
-        optionLabels: ["바비큐", "닭갈비"],
+        optionLabels: ["바비큐", "닭갈비", "회"],
+        maxSelections: 2,
         anonymous: false,
         resultsVisibility: "ALWAYS",
       })
@@ -612,14 +613,27 @@ describe("인증 → 그룹 → 초대 권한 흐름 (e2e)", () => {
     const poll = (
       pollResponse.body as ApiSuccess<{
         id: string;
+        maxSelections: number;
         options: Array<{ id: string }>;
       }>
     ).data;
+    expect(poll.maxSelections).toBe(2);
     await request(app.getHttpServer())
       .post(`/v1/polls/${poll.id}/votes`)
       .set("authorization", `Bearer ${friend.accessToken}`)
-      .send({ optionIds: [poll.options[0]!.id] })
-      .expect(201);
+      .send({ optionIds: poll.options.map((option) => option.id) })
+      .expect(409)
+      .expect(({ body }) => {
+        expect(body.error.code).toBe("POLL_SELECTION_LIMIT_EXCEEDED");
+      });
+    await request(app.getHttpServer())
+      .post(`/v1/polls/${poll.id}/votes`)
+      .set("authorization", `Bearer ${friend.accessToken}`)
+      .send({ optionIds: [poll.options[0]!.id, poll.options[1]!.id] })
+      .expect(201)
+      .expect(({ body }) => {
+        expect(body.data.myVote.optionIds).toHaveLength(2);
+      });
 
     const tapRoundId = randomUUID();
     const tapResult = await request(app.getHttpServer())

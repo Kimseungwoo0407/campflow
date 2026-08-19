@@ -50,6 +50,8 @@ export class PlanningService {
   async createPoll(userId: string, tripId: string, input: CreatePollInput) {
     const membership = await this.access.requireWriter(userId, tripId);
     const options = input.optionLabels.map((label) => ({ id: newId(), label }));
+    const maxSelections =
+      input.type === "SINGLE" ? 1 : (input.maxSelections ?? input.optionLabels.length);
     const poll = await this.prisma.poll.create({
       data: {
         id: newId(),
@@ -59,6 +61,7 @@ export class PlanningService {
         title: input.title,
         ...(input.description === undefined ? {} : { description: input.description }),
         options,
+        maxSelections,
         anonymous: input.anonymous,
         resultsVisibility: input.resultsVisibility,
         ...(input.closesAt === undefined ? {} : { closesAt: new Date(input.closesAt) }),
@@ -96,10 +99,19 @@ export class PlanningService {
     const options = poll.options as unknown as PollOption[];
     const validIds = new Set(options.map((option) => option.id));
     const uniqueOptionIds = [...new Set(input.optionIds)];
-    if (
-      uniqueOptionIds.some((optionId) => !validIds.has(optionId)) ||
-      (poll.type === "SINGLE" && uniqueOptionIds.length !== 1)
-    ) {
+    if (uniqueOptionIds.some((optionId) => !validIds.has(optionId))) {
+      throw new ConflictException({
+        code: "INVALID_POLL_VOTE",
+        message: "투표 선택값을 확인해 주세요.",
+      });
+    }
+    if (uniqueOptionIds.length > poll.maxSelections) {
+      throw new ConflictException({
+        code: "POLL_SELECTION_LIMIT_EXCEEDED",
+        message: `이 투표는 최대 ${poll.maxSelections}개까지 선택할 수 있습니다.`,
+      });
+    }
+    if (poll.type === "SINGLE" && uniqueOptionIds.length !== 1) {
       throw new ConflictException({
         code: "INVALID_POLL_VOTE",
         message: "투표 선택값을 확인해 주세요.",
@@ -410,6 +422,7 @@ export class PlanningService {
       title: string;
       description: string | null;
       options: unknown;
+      maxSelections: number;
       anonymous: boolean;
       resultsVisibility: string;
       closesAt: Date | null;

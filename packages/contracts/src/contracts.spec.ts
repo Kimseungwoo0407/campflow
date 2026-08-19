@@ -5,6 +5,7 @@ import {
   createInviteSchema,
   createManualCandidateSchema,
   createPollCommentSchema,
+  createPollSchema,
   updateExpenseSchema,
   updateMealSchema,
   updateVehicleSchema,
@@ -102,6 +103,22 @@ describe("공유 입력 계약", () => {
       true,
     );
     expect(createPollCommentSchema.safeParse({ body: "   " }).success).toBe(false);
+  });
+
+  it("복수 선택 투표의 최대 선택 개수를 선택지 범위 안으로 제한한다", () => {
+    const poll = {
+      type: "MULTIPLE",
+      title: "먹고 싶은 메뉴",
+      optionLabels: ["바비큐", "닭갈비", "회"],
+      anonymous: false,
+      resultsVisibility: "ALWAYS",
+    };
+
+    expect(createPollSchema.safeParse({ ...poll, maxSelections: 2 }).success).toBe(true);
+    expect(createPollSchema.safeParse({ ...poll, maxSelections: 4 }).success).toBe(false);
+    expect(createPollSchema.safeParse({ ...poll, type: "SINGLE", maxSelections: 2 }).success).toBe(
+      false,
+    );
   });
 
   it("지출의 결제자·금액·분담자를 수정한다", () => {

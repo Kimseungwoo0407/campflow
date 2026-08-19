@@ -435,6 +435,7 @@ model Poll {
   title             String
   description       String?
   options           Json
+  maxSelections     Int           @default(1)
   anonymous         Boolean       @default(false)
   resultsVisibility String        @default("ALWAYS")
   closesAt          DateTime?
