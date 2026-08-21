@@ -34,7 +34,10 @@ function Write-WatchdogLog {
   )
 
   $line = "{0} [{1}] {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss zzz"), $Level, $Message
-  Write-Output $line
+  # Logging must not write to the success output stream. Test-ApiHealth is used
+  # as a Boolean expression, and emitted log lines would make a failed health
+  # check (log lines followed by $false) evaluate as truthy.
+  Write-Host $line
   [IO.File]::AppendAllText(
     $LogPath,
     $line + [Environment]::NewLine,
