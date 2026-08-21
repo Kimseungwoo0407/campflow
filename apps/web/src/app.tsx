@@ -16,6 +16,7 @@ import { GuidePage } from "./pages/guide-page";
 import { InvitePage } from "./pages/invite-page";
 import { LoginPage } from "./pages/auth-pages";
 import { NotFoundPage } from "./pages/not-found-page";
+import { LandingPage } from "./pages/landing-page";
 import { SettingsPage } from "./pages/settings-page";
 import { TripDetailPage, TripsPage } from "./pages/trips-pages";
 import { TripArcadePage } from "./pages/trip-arcade-page";
@@ -60,7 +61,10 @@ export function App() {
   const serverOnline = demoActive || health.isPending || health.isSuccess;
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/"
+        element={authStatus === "authenticated" ? <Navigate to="/app" replace /> : <LandingPage />}
+      />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<Navigate to="/login" replace />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
