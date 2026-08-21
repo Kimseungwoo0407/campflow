@@ -48,7 +48,7 @@ describe("LoginPage", () => {
     });
   });
 
-  it("공개 페이지의 홈 서버가 끊기면 로그인 시도를 데모로 전환한다", async () => {
+  it("공개 페이지의 홈 서버가 끊겨도 로그인 시도를 데모로 전환하지 않는다", async () => {
     vi.stubEnv("VITE_DEMO_MODE", "true");
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("offline"));
     render(
@@ -63,8 +63,9 @@ describe("LoginPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "로그인" }));
 
-    await vi.waitFor(() => expect(useAuthStore.getState().status).toBe("authenticated"));
-    expect(sessionStorage.getItem("campflow_demo_session")).toBe("active");
+    expect(await screen.findByRole("alert")).toHaveTextContent("홈 서버에 연결할 수 없습니다");
+    expect(useAuthStore.getState().status).not.toBe("authenticated");
+    expect(sessionStorage.getItem("campflow_demo_session")).toBeNull();
   });
 
   it("데모 세션에서 실제 로그인을 시도하면 데모를 종료하고 API를 호출한다", async () => {
