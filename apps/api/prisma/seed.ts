@@ -3,7 +3,12 @@ import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import argon2 from "argon2";
 import { Prisma, PrismaClient } from "@prisma/client";
-import { calculateSettlements, newId, normalizeEmail, splitAmountEvenly } from "@campflow/domain";
+import {
+  calculateSharedFundSettlement,
+  newId,
+  normalizeEmail,
+  splitAmountEvenly,
+} from "@campflow/domain";
 
 const prisma = new PrismaClient();
 
@@ -537,16 +542,9 @@ async function main() {
       prisma.expense.findMany({ where: { tripId: trip.id }, include: { shares: true } }),
       prisma.tripMember.findMany({ where: { tripId: trip.id } }),
     ]);
-    const settlementResult = calculateSettlements(
+    const settlementResult = calculateSharedFundSettlement(
       tripMembers.map((member) => member.userId),
-      tripExpenses.map((expense) => ({
-        payerId: expense.payerId,
-        amount: expense.amount,
-        shares: expense.shares.map((share) => ({
-          userId: share.userId,
-          amount: share.amount,
-        })),
-      })),
+      tripExpenses,
     );
     const settlement = await prisma.settlementRevision.create({
       data: {

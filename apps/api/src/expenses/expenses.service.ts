@@ -5,12 +5,7 @@ import type {
   UpdateExpenseInput,
   UpdatePaymentInput,
 } from "@campflow/contracts";
-import {
-  calculateSettlements,
-  newId,
-  splitAmountEvenly,
-  type ExpenseForSettlement,
-} from "@campflow/domain";
+import { calculateSharedFundSettlement, newId, splitAmountEvenly } from "@campflow/domain";
 import { PrismaService } from "../prisma/prisma.service";
 import { PointsService } from "../points/points.service";
 import { TripAccessService } from "../trips/trip-access.service";
@@ -158,17 +153,9 @@ export class ExpensesService {
         orderBy: { revisionNo: "desc" },
       }),
     ]);
-    const settlementInput: ExpenseForSettlement[] = expenses.map((expense) => ({
-      payerId: expense.payerId,
-      amount: expense.amount,
-      shares: expense.shares.map((share) => ({
-        userId: share.userId,
-        amount: share.amount,
-      })),
-    }));
-    const result = calculateSettlements(
+    const result = calculateSharedFundSettlement(
       members.map((member) => member.userId),
-      settlementInput,
+      expenses,
     );
     const revision = await this.prisma.$transaction(async (transaction) => {
       const created = await transaction.settlementRevision.create({
@@ -198,6 +185,13 @@ export class ExpensesService {
       where: { id: settlementId },
     });
     if (!settlement) throw this.settlementNotFound();
+    const result = settlement.result as { contributions?: unknown };
+    if (!Array.isArray(result.contributions)) {
+      throw new ForbiddenException({
+        code: "SETTLEMENT_RECALCULATION_REQUIRED",
+        message: "회비 균등 분할 방식으로 정산을 다시 계산해 주세요.",
+      });
+    }
     await this.access.requireManager(userId, settlement.tripId);
     await this.prisma.$transaction([
       this.prisma.settlementRevision.update({
@@ -270,19 +264,15 @@ export class ExpensesService {
     tripId: string,
     input: CreateExpenseInput | UpdateExpenseInput,
   ) {
-    const participantUserIds = [...new Set(input.participantUserIds)];
     const members = await this.access.members(tripId);
     const memberIds = new Set(members.map((member) => member.userId));
-    if (
-      !memberIds.has(input.payerId) ||
-      participantUserIds.some((participantId) => !memberIds.has(participantId))
-    ) {
+    if (!memberIds.has(input.payerId)) {
       throw new ForbiddenException({
         code: "EXPENSE_MEMBER_REQUIRED",
-        message: "결제자와 분담 대상은 여행 멤버여야 합니다.",
+        message: "결제자는 여행 멤버여야 합니다.",
       });
     }
-    return participantUserIds;
+    return members.map((member) => member.userId);
   }
 
   private async assertSettlementUnlocked(tripId: string) {

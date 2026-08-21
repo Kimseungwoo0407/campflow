@@ -37,7 +37,7 @@ describe("여행 기록 편집 폼", () => {
     expect(screen.getByRole("button", { name: /변경 저장/ })).toBeInTheDocument();
   });
 
-  it("지출의 금액과 분담자를 수정한다", () => {
+  it("지출의 금액과 기록용 결제자를 수정한다", () => {
     const onChange = vi.fn();
     render(
       <ExpenseForm
@@ -47,7 +47,6 @@ describe("여행 기록 편집 폼", () => {
           category: "ACCOMMODATION",
           spentAt: "2026-08-29T12:00",
           payerId: "member-user-01",
-          participantUserIds: ["member-user-01"],
         }}
         members={members}
         pending={false}
@@ -58,12 +57,13 @@ describe("여행 기록 편집 폼", () => {
     );
 
     fireEvent.change(screen.getByLabelText("금액"), { target: { value: "300000" } });
-    fireEvent.click(screen.getByLabelText("현수"));
+    fireEvent.change(screen.getByLabelText("결제자 (기록용)"), {
+      target: { value: "member-user-02" },
+    });
 
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ amount: "300000" }));
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ participantUserIds: ["member-user-01", "member-user-02"] }),
-    );
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ payerId: "member-user-02" }));
+    expect(screen.queryByText("분담자")).not.toBeInTheDocument();
   });
 
   it("식단의 시간과 여러 재료를 수정한다", () => {

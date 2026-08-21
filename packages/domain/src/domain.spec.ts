@@ -3,6 +3,7 @@ import {
   canManageGroup,
   canTransitionTrip,
   canWriteGroupContent,
+  calculateSharedFundSettlement,
   calculateSettlements,
   newId,
   normalizeEmail,
@@ -46,5 +47,23 @@ describe("Phase 1 도메인 정책", () => {
       { fromUserId: "c", toUserId: "a", amount: 3333 },
     ]);
     expect(result.transfers.reduce((sum, transfer) => sum + transfer.amount, 0)).toBe(6667);
+  });
+
+  it("회비 지출은 결제자와 무관하게 모든 멤버가 균등 부담한다", () => {
+    const result = calculateSharedFundSettlement(
+      ["a", "b", "c", "d"],
+      [{ amount: 320_000 }, { amount: 86_500 }],
+    );
+
+    expect(result).toEqual({
+      totalAmount: 406_500,
+      contributions: [
+        { userId: "a", amount: 101_625 },
+        { userId: "b", amount: 101_625 },
+        { userId: "c", amount: 101_625 },
+        { userId: "d", amount: 101_625 },
+      ],
+      transfers: [],
+    });
   });
 });

@@ -2934,6 +2934,43 @@ p {
   gap: 0.8rem;
 }
 
+.settlement-card__summary {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.settlement-card__summary small,
+.record-editor__note {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+.contribution-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.contribution-row {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--teal-soft);
+  padding: 0.65rem;
+  color: var(--navy);
+}
+
+.contribution-row i {
+  color: var(--teal);
+  font-size: 0.7rem;
+  font-style: normal;
+}
+
 .payment-list {
   display: grid;
   gap: 0.45rem;
@@ -3242,7 +3279,15 @@ textarea {
     grid-template-columns: 1fr auto;
   }
 
+  .contribution-row {
+    grid-template-columns: 1fr auto;
+  }
+
   .payment-row i {
+    grid-column: 1 / -1;
+  }
+
+  .contribution-row i {
     grid-column: 1 / -1;
   }
 }

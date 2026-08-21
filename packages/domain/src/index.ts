@@ -60,6 +60,12 @@ export interface SettlementTransfer {
   amount: number;
 }
 
+export interface SharedFundSettlement {
+  totalAmount: number;
+  contributions: Array<{ userId: string; amount: number }>;
+  transfers: SettlementTransfer[];
+}
+
 export function splitAmountEvenly(amount: number, userIds: readonly string[]) {
   if (!Number.isInteger(amount) || amount < 0 || userIds.length === 0) {
     throw new Error("금액과 분담 인원을 확인해 주세요.");
@@ -71,6 +77,20 @@ export function splitAmountEvenly(amount: number, userIds: readonly string[]) {
     remainder = Math.max(0, remainder - 1);
     return { userId, amount: share };
   });
+}
+
+export function calculateSharedFundSettlement(
+  memberIds: readonly string[],
+  expenses: ReadonlyArray<{ amount: number }>,
+): SharedFundSettlement {
+  const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  return {
+    totalAmount,
+    contributions: splitAmountEvenly(totalAmount, memberIds),
+    // Expenses are paid from the shared fund. The recorded payer is informational,
+    // so no member owes money to another member.
+    transfers: [],
+  };
 }
 
 export function calculateSettlements(

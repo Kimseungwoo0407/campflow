@@ -179,19 +179,14 @@ interface Expense {
   shares: Array<{ amount: number; user: UserRef }>;
 }
 
-interface SettlementPayment {
-  id: string;
-  amount: number;
-  status: "PENDING" | "PAID";
-  fromUser: UserRef;
-  toUser: UserRef;
-}
-
 interface Settlement {
   id: string;
   revisionNo: number;
   status: "DRAFT" | "LOCKED";
-  payments: SettlementPayment[];
+  result?: {
+    totalAmount?: number;
+    contributions?: Array<{ userId: string; amount: number }>;
+  };
 }
 
 interface ExpenseData {
@@ -216,7 +211,6 @@ interface ExpenseFormValue {
   category: ExpenseCategory;
   spentAt: string;
   payerId: string;
-  participantUserIds: string[];
 }
 
 interface MealFormValue {
@@ -532,7 +526,7 @@ export function ExpenseForm({
           </select>
         </label>
         <label>
-          <span>결제자</span>
+          <span>결제자 (기록용)</span>
           <select
             className="input"
             value={value.payerId}
@@ -558,27 +552,9 @@ export function ExpenseForm({
           />
         </label>
       </div>
-      <fieldset className="member-picker">
-        <legend>분담자</legend>
-        <div className="member-picker__grid">
-          {members.map((member) => (
-            <label className="check-field" key={member.user.id}>
-              <input
-                type="checkbox"
-                checked={value.participantUserIds.includes(member.user.id)}
-                onChange={() =>
-                  onChange({
-                    ...value,
-                    participantUserIds: toggleMember(value.participantUserIds, member.user.id),
-                  })
-                }
-              />
-              <span>{member.user.nickname}</span>
-            </label>
-          ))}
-        </div>
-        <small>한 명 이상 선택해 주세요.</small>
-      </fieldset>
+      <small className="record-editor__note">
+        결제자는 지출 내역에 이름만 기록되며, 부담금은 모든 여행 멤버에게 똑같이 나뉩니다.
+      </small>
       <div className="record-editor__actions">
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
@@ -2121,7 +2097,6 @@ export function TripExpensesPage() {
     category: "OTHER",
     spentAt: currentKoreaDateTimeInput(),
     payerId: "",
-    participantUserIds: [],
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<ExpenseFormValue | null>(null);
@@ -2131,9 +2106,6 @@ export function TripExpensesPage() {
   const create = useMutation({
     mutationFn: () => {
       if (!createValue.payerId) throw new Error("결제자를 선택해 주세요.");
-      if (createValue.participantUserIds.length === 0) {
-        throw new Error("분담자를 한 명 이상 선택해 주세요.");
-      }
       return apiRequest(`trips/${tripId}/expenses`, {
         method: "POST",
         body: JSON.stringify({
@@ -2142,7 +2114,7 @@ export function TripExpensesPage() {
           category: createValue.category,
           spentAt: fromKoreaDateTimeInput(createValue.spentAt),
           memo: createValue.memo,
-          participantUserIds: createValue.participantUserIds,
+          participantUserIds: (trip?.members ?? []).map((member) => member.user.id),
         }),
       });
     },
@@ -2153,7 +2125,6 @@ export function TripExpensesPage() {
         category: "OTHER",
         spentAt: currentKoreaDateTimeInput(),
         payerId: "",
-        participantUserIds: [],
       });
       refresh();
     },
@@ -2161,9 +2132,6 @@ export function TripExpensesPage() {
   const update = useMutation({
     mutationFn: ({ id, value }: { id: string; value: ExpenseFormValue }) => {
       if (!value.payerId) throw new Error("결제자를 선택해 주세요.");
-      if (value.participantUserIds.length === 0) {
-        throw new Error("분담자를 한 명 이상 선택해 주세요.");
-      }
       return apiRequest(`expenses/${id}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -2172,7 +2140,7 @@ export function TripExpensesPage() {
           category: value.category,
           spentAt: fromKoreaDateTimeInput(value.spentAt),
           memo: value.memo,
-          participantUserIds: value.participantUserIds,
+          participantUserIds: (trip?.members ?? []).map((member) => member.user.id),
         }),
       });
     },
@@ -2195,15 +2163,20 @@ export function TripExpensesPage() {
     mutationFn: (id: string) => apiRequest(`settlements/${id}/lock`, { method: "POST" }),
     onSuccess: refresh,
   });
-  const pay = useMutation({
-    mutationFn: ({ id, paid }: { id: string; paid: boolean }) =>
-      apiRequest(`settlement-payments/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ paid }),
-      }),
-    onSuccess: refresh,
-  });
   const settlement = expenses.data?.latestSettlement;
+  const hasSharedFundSettlement = Array.isArray(settlement?.result?.contributions);
+  const contributionMembers = trip?.members ?? [];
+  const contributionTotal = expenses.data?.total ?? 0;
+  const contributionBase =
+    contributionMembers.length > 0 ? Math.floor(contributionTotal / contributionMembers.length) : 0;
+  const contributionRemainder =
+    contributionMembers.length > 0
+      ? contributionTotal - contributionBase * contributionMembers.length
+      : 0;
+  const contributions = contributionMembers.map((member, index) => ({
+    user: member.user,
+    amount: contributionBase + (index < contributionRemainder ? 1 : 0),
+  }));
 
   function startEditing(expense: Expense) {
     setEditingId(expense.id);
@@ -2213,18 +2186,17 @@ export function TripExpensesPage() {
       category: expense.category,
       spentAt: toKoreaDateTimeInput(expense.spentAt),
       payerId: expense.payer.id,
-      participantUserIds: expense.shares.map((share) => share.user.id),
     });
   }
 
   return (
     <WorkspaceShell
       eyebrow="비용과 정산"
-      title="1원까지 정확한 더치페이"
-      description="지출을 등록하면 모든 멤버에게 균등 분할하고 최소 송금 경로를 계산합니다."
+      title="회비를 모두 똑같이 나누기"
+      description="결제자는 기록으로만 남기고, 총지출은 모든 여행 멤버가 균등 부담합니다."
       actions={
         <Button onClick={() => calculate.mutate()}>
-          <Coins size={17} /> 정산 다시 계산
+          <Coins size={17} /> 회비 정산 계산
         </Button>
       }
     >
@@ -2239,7 +2211,7 @@ export function TripExpensesPage() {
             <span className="eyebrow">새 지출</span>
             <h2>지출 정보 입력</h2>
           </div>
-          <small>결제자와 실제 분담자를 선택하고, 등록 후에도 수정할 수 있습니다.</small>
+          <small>결제자는 기록용이며, 등록된 금액은 자동으로 전체 멤버에게 나뉩니다.</small>
         </div>
         <ExpenseForm
           value={createValue}
@@ -2251,9 +2223,7 @@ export function TripExpensesPage() {
         />
       </Card>
       <ErrorNotice
-        error={
-          create.error ?? update.error ?? remove.error ?? calculate.error ?? lock.error ?? pay.error
-        }
+        error={create.error ?? update.error ?? remove.error ?? calculate.error ?? lock.error}
       />
       <div className="expense-layout">
         <section className="expense-list">
@@ -2290,9 +2260,7 @@ export function TripExpensesPage() {
                         <small>
                           {expense.payer.nickname} 결제 · {dateTime(expense.spentAt)}
                         </small>
-                        <small>
-                          분담: {expense.shares.map((share) => share.user.nickname).join(", ")}
-                        </small>
+                        <small>회비 분담: 여행 멤버 전체</small>
                       </div>
                       <b>{money(expense.amount)}</b>
                     </div>
@@ -2325,33 +2293,31 @@ export function TripExpensesPage() {
         </section>
         <Card className="settlement-card">
           <div className="section-heading-row">
-            <h2>송금할 금액</h2>
-            {settlement && (
+            <h2>{contributionMembers.length}명 균등 부담금</h2>
+            {settlement && hasSharedFundSettlement && (
               <span className="badge">
                 {settlement.status === "LOCKED" ? "확정" : `계산 ${settlement.revisionNo}차`}
               </span>
             )}
+            {settlement && !hasSharedFundSettlement && <span className="badge">새 계산 필요</span>}
           </div>
-          {!settlement && <p>정산 계산을 누르면 송금 목록이 생깁니다.</p>}
-          <div className="payment-list">
-            {settlement?.payments.map((payment) => (
-              <button
-                className={
-                  payment.status === "PAID" ? "payment-row payment-row--paid" : "payment-row"
-                }
-                type="button"
-                key={payment.id}
-                onClick={() => pay.mutate({ id: payment.id, paid: payment.status !== "PAID" })}
-              >
-                <span>
-                  {payment.fromUser.nickname} → {payment.toUser.nickname}
-                </span>
-                <strong>{money(payment.amount)}</strong>
-                <i>{payment.status === "PAID" ? "완료" : "송금 전"}</i>
-              </button>
+          <p className="settlement-card__summary">
+            총지출 {money(contributionTotal)} ÷ {contributionMembers.length}명
+            <small>결제자와 관계없이 회비 기준으로 계산합니다.</small>
+          </p>
+          {!hasSharedFundSettlement && (
+            <p>현재 지출 기준 미리보기입니다. 회비 정산 계산을 눌러 갱신해 주세요.</p>
+          )}
+          <div className="contribution-list">
+            {contributions.map((contribution) => (
+              <div className="contribution-row" key={contribution.user.id}>
+                <span>{contribution.user.nickname}</span>
+                <strong>{money(contribution.amount)}</strong>
+                <i>1인 부담</i>
+              </div>
             ))}
           </div>
-          {settlement?.status === "DRAFT" && (
+          {settlement?.status === "DRAFT" && hasSharedFundSettlement && (
             <Button variant="secondary" onClick={() => lock.mutate(settlement.id)}>
               이 정산 확정하기
             </Button>
